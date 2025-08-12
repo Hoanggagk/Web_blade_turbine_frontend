@@ -1,13 +1,22 @@
 import React from "react";
 
+type LoginFormProps = {
+  username: string;                     // Giá trị của input username
+  password: string;                     // Giá trị của input password
+  error?: string;                        // Thông báo lỗi (nếu có)
+  onUsernameChange: (value: string) => void; // Hàm xử lý khi thay đổi username
+  onPasswordChange: (value: string) => void; // Hàm xử lý khi thay đổi password
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; // Hàm xử lý khi submit form
+};
+
 function LoginForm({
-  username,           // Giá trị của input username
-  password,           // Giá trị của input password
-  error,              // Thông báo lỗi (nếu có)
-  onUsernameChange,   // Hàm xử lý khi thay đổi username
-  onPasswordChange,   // Hàm xử lý khi thay đổi password
-  onSubmit            // Hàm xử lý khi submit form
-}) {
+  username,
+  password,
+  error,
+  onUsernameChange,
+  onPasswordChange,
+  onSubmit,
+}: LoginFormProps) {
   return (
     <div className="LoginPage">
       {/* Ảnh nền của trang login */}
@@ -20,13 +29,11 @@ function LoginForm({
       {/* Container bọc form login */}
       <div className="LoginFormContainer">
         <div className="LoginForm">
-          
           {/* Tiêu đề form */}
           <h1 className="LoginTitle">Log in</h1>
 
           {/* Form đăng nhập */}
           <form onSubmit={onSubmit}>
-
             {/* Trường nhập username */}
             <div className="InputFormContainer">
               <label className="UsernameLabel">Your username</label>
