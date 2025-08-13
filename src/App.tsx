@@ -3,9 +3,13 @@ import LoginPage from "./pages/LoginPage";
 export default function App() {
   return (
     <main>
-      <div className="LoginPage">
-        <LoginPage />
-      </div>
+      <LoginPage
+        username=""
+        password=""
+        onUsernameChange={() => {}}
+        onPasswordChange={() => {}}
+        onSubmit={(e) => e.preventDefault()}
+      />
     </main>
   );
 }
