@@ -67,3 +67,22 @@ export default tseslint.config([
   },
 ])
 ```
+Giao diện Document Tree LoginPage
+
+  DOCUMENT TREE - LoginPage Component
+  
+  LoginPage (div.LoginPage)
+  ├── LoginBackgroundImage (img.LoginBackgroundImage)
+  └── LoginFormContainer (div.LoginFormContainer)
+      ├── LoginTitle (h1.LoginTitle)
+      └── form
+          ├── InputFormContainer (div.InputFormContainer) — Username field
+          │    ├── InputLabel (label.InputLabel)
+          │    └── InputContainer (div.InputContainer)
+          │         └── LoginInput (input.LoginInput) [type="text"]
+          ├── InputFormContainer (div.InputFormContainer) — Password field
+          │    ├── InputLabel (label.InputLabel)
+          │    └── InputContainer (div.InputContainer)
+          │         └── LoginInput (input.LoginInput) [type="password"]
+          ├── Error message (p) — rendered conditionally if error exists
+          └── LoginSubmitButton (button.LoginSubmitButton)
