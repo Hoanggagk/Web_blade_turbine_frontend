@@ -1,4 +1,3 @@
-// src/api/types/typesmemberService.ts
 export type ProjectRole = "owner" | "editor" | "viewer";
 
 export type ProjectMemberResponse = {
@@ -28,6 +27,13 @@ export type AdminUserLite = {
 
 export type AddMemberRequest = {
   email: string;
-  role: ProjectRole;       // <-- KHÔNG còn "user", dùng "viewer" cho User
-  can_invite: boolean;     // BE vẫn yêu cầu field này
+  role: ProjectRole;   // BE yêu cầu "owner" | "editor" | "viewer"
+  can_invite: boolean;
 };
+
+export type UpdateMemberRequest = {
+  role: ProjectRole;
+  can_invite: boolean;
+};
+
+export type MyRoleResponse = ProjectRole;

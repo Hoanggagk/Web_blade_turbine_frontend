@@ -8,72 +8,93 @@ export type Column<T> = {
   header: string | React.ReactNode;
   size?: number;
   align?: Align;
-  /** header chỉ định riêng class (khác với cell) */
   headerClassName?: string;
-  /** class cho cell */
   className?: string;
-  /** custom render phần header */
   headerRender?: () => React.ReactNode;
-  /** render cell */
   render?: (row: T, index: number) => React.ReactNode;
-  /** bật sort client-side cho cột này */
   sortable?: boolean;
-  /** accessor để sort (mặc định lấy (row as any)[key]) */
   sortAccessor?: (row: T) => string | number | null | undefined;
-  /** khi enableSelection=true, auto chèn checkbox column riêng nên không cần định nghĩa */
 };
 
 export type GenericTableProps<T> = {
   data: T[];
   columns: Column<T>[];
-
-  // ===== Row interactivity & a11y =====
   onRowClick?: (row: T, index: number) => void;
   onRowDoubleClick?: (row: T, index: number) => void;
   onRowKeyDown?: (e: React.KeyboardEvent, row: T, index: number) => void;
   rowClassName?: (row: T, index: number) => string | undefined;
   rowProps?: (row: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>;
-  /** props cho từng cell (tiêm tooltip, data-*, v.v.) */
-  cellProps?: (
-    row: T,
-    col: Column<T>,
-    index: number
-  ) => React.TdHTMLAttributes<HTMLTableCellElement>;
-
-  // ===== States =====
+  cellProps?: (row: T, col: Column<T>, index: number) => React.TdHTMLAttributes<HTMLTableCellElement>;
   loading?: boolean;
   emptyText?: string;
-
-  // ===== Keys =====
-  /** fallback là row.id hoặc index */
   getRowKey?: (row: T, index: number) => React.Key;
-
-  // ===== Sticky header =====
   stickyHeader?: boolean;
-
-  // ===== Tooltip text dài (ellipsis đã có trong CSS) =====
-  /** auto thêm title={plainText} cho cell khi text dài */
   cellAutoTooltip?: boolean;
-
-  // ===== Selection (checkbox) =====
   enableSelection?: boolean;
   selectedRowIds?: Set<React.Key>;
   onSelectionChange?: (ids: Set<React.Key>) => void;
-  /** định danh dùng cho selection (mặc định = getRowKey(row) hoặc row.id) */
   getSelectionKey?: (row: T, index: number) => React.Key;
-
-  // ===== Pagination (server hoặc client) =====
-  page?: number;        // 1-based
+  page?: number;
   pageSize?: number;
   total?: number;
   onPageChange?: (page: number) => void;
-
-  /** Bật Enter/Space + focus row khi có onRowClick (mặc định: true) */
   activateOnKeyboard?: boolean;
 };
 
-type SortState = { key?: string; dir?: "asc" | "desc" };
+/* =========================
+   Table Manager (fix constructor)
+   ========================= */
+class TableManager<T> {
+  private data: T[];
+  private columns: Column<T>[];
+  private getRowKey?: (row: T, index: number) => React.Key;
+  private getSelectionKey?: (row: T, index: number) => React.Key;
 
+  constructor(
+    data: T[],
+    columns: Column<T>[],
+    getRowKey?: (row: T, index: number) => React.Key,
+    getSelectionKey?: (row: T, index: number) => React.Key
+  ) {
+    this.data = data;
+    this.columns = columns;
+    this.getRowKey = getRowKey;
+    this.getSelectionKey = getSelectionKey;
+  }
+
+  getKey(row: T, index: number): React.Key {
+    return this.getRowKey?.(row, index) ?? (row as any).id ?? index;
+  }
+  getSelKey(row: T, index: number): React.Key {
+    return this.getSelectionKey?.(row, index) ?? this.getKey(row, index);
+  }
+
+  sort(data: T[], sortKey?: string, sortDir?: "asc" | "desc"): T[] {
+    if (!sortKey || !sortDir) return data;
+    const col = this.columns.find((c) => c.key === sortKey);
+    if (!col) return data;
+    const acc = col.sortAccessor ?? ((r: any) => r[sortKey]);
+    return [...data].sort((a, b) => {
+      const va = acc(a);
+      const vb = acc(b);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
+
+  getTotalPages(pageSize?: number, total?: number): number {
+    if (!pageSize || !total) return 1;
+    return Math.max(1, Math.ceil(total / pageSize));
+  }
+}
+
+/* =========================
+   GenericTable Component
+   ========================= */
 function GenericTable<T extends { id?: string }>({
   data,
   columns,
@@ -96,10 +117,50 @@ function GenericTable<T extends { id?: string }>({
   pageSize,
   total,
   onPageChange,
-  activateOnKeyboard = true, // 🆕 mặc định bật
+  activateOnKeyboard = true,
 }: GenericTableProps<T>) {
-  // ===== Sorting (client-side nhẹ) =====
-  const [sortState, setSortState] = React.useState<SortState>({});
+  const [sortState, setSortState] = React.useState<{ key?: string; dir?: "asc" | "desc" }>({});
+  const manager = React.useMemo(() => new TableManager<T>(data, columns, getRowKey, getSelectionKey), [
+    data,
+    columns,
+    getRowKey,
+    getSelectionKey,
+  ]);
+
+  const sorted = manager.sort(data, sortState.key, sortState.dir);
+
+  // Selection
+  const selectionIds = selectedRowIds ?? new Set<React.Key>();
+  const allKeys = enableSelection ? sorted.map((r, i) => manager.getSelKey(r, i)) : [];
+  const allChecked = allKeys.length > 0 && allKeys.every((k) => selectionIds.has(k));
+  const indeterminate = allKeys.some((k) => selectionIds.has(k)) && !allChecked;
+
+  const handleToggleAll = () => {
+    if (!enableSelection || !onSelectionChange) return;
+    const next = new Set(selectionIds);
+    if (allChecked) allKeys.forEach((k) => next.delete(k));
+    else allKeys.forEach((k) => next.add(k));
+    onSelectionChange(next);
+  };
+
+  const handleToggleOne = (key: React.Key) => {
+    if (!enableSelection || !onSelectionChange) return;
+    const next = new Set(selectionIds);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    onSelectionChange(next);
+  };
+
+  // Pagination
+  const totalPages = manager.getTotalPages(pageSize, total);
+  const showPagination =
+    typeof page === "number" &&
+    typeof pageSize === "number" &&
+    typeof total === "number" &&
+    onPageChange &&
+    totalPages > 1;
+
+  // Sort
   const toggleSort = (col: Column<T>) => {
     if (!col.sortable) return;
     setSortState((s) => {
@@ -108,267 +169,125 @@ function GenericTable<T extends { id?: string }>({
     });
   };
 
-  const sorted = React.useMemo(() => {
-    if (!sortState.key) return data;
-    const col = columns.find((c) => c.key === sortState.key);
-    if (!col) return data;
-    const acc = col.sortAccessor ?? ((r: any) => r[col.key]);
-    const copy = [...data];
-    copy.sort((a, b) => {
-      const va = acc(a) as any;
-      const vb = acc(b) as any;
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      if (va < vb) return sortState.dir === "asc" ? -1 : 1;
-      if (va > vb) return sortState.dir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return copy;
-  }, [data, columns, sortState]);
-
-  // ===== Selection =====
-  const selectionIds = React.useMemo<Set<React.Key>>(
-    () => selectedRowIds ?? new Set<React.Key>(),
-    [selectedRowIds]
-  );
-
-  const getKey = (row: T, index: number): React.Key =>
-    getRowKey?.(row, index) ?? (row as any).id ?? index;
-
-  const getSelKey = (row: T, index: number): React.Key =>
-    getSelectionKey?.(row, index) ?? getKey(row, index);
-
-  const allSelectableKeys = React.useMemo(
-    () => (enableSelection ? sorted.map((r, i) => getSelKey(r, i)) : []),
-    [enableSelection, sorted]
-  );
-
-  const allChecked =
-    enableSelection &&
-    allSelectableKeys.length > 0 &&
-    allSelectableKeys.every((k) => selectionIds.has(k));
-
-  const indeterminate =
-    enableSelection &&
-    allSelectableKeys.length > 0 &&
-    !allChecked &&
-    allSelectableKeys.some((k) => selectionIds.has(k));
-
-  const onToggleAll = () => {
-    if (!enableSelection || !onSelectionChange) return;
-    const next = new Set(selectionIds);
-    if (allChecked) {
-      allSelectableKeys.forEach((k) => next.delete(k));
-    } else {
-      allSelectableKeys.forEach((k) => next.add(k));
-    }
-    onSelectionChange(next);
-  };
-
-  const onToggleOne = (key: React.Key) => {
-    if (!enableSelection || !onSelectionChange) return;
-    const next = new Set(selectionIds);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    onSelectionChange(next);
-  };
-
-  // ===== Pagination footer (hiển thị nếu đủ props) =====
-  const showPagination =
-    typeof page === "number" &&
-    typeof pageSize === "number" &&
-    typeof total === "number" &&
-    typeof onPageChange === "function";
-
-  const totalPages =
-    showPagination && pageSize! > 0 ? Math.max(1, Math.ceil(total! / pageSize!)) : 1;
-
-  const handlePrev = () => {
-    if (!showPagination) return;
-    if (page! > 1) onPageChange!(page! - 1);
-  };
-  const handleNext = () => {
-    if (!showPagination) return;
-    if (page! < totalPages) onPageChange!(page! + 1);
-  };
-
-  // ===== Render =====
   return (
-    <div
-      className="table-container"
-      role="table"
-      aria-busy={!!loading}
-      aria-rowcount={data.length}
-    >
-      <table className={`user-table${stickyHeader ? " user-table--sticky" : ""}`} role="grid">
-        <thead>
-          <tr>
-            {enableSelection && (
-              <th
-                className="th-select"
-                scope="col"
-                aria-label="Select all rows"
-                style={{ width: "32px", textAlign: "center" }}
-              >
-                <input
-                  type="checkbox"
-                  aria-checked={indeterminate ? "mixed" : allChecked}
-                  checked={allChecked}
-                  ref={(el) => {
-                    if (el) el.indeterminate = indeterminate as boolean;
-                  }}
-                  onChange={onToggleAll}
-                />
-              </th>
-            )}
-
-            {columns.map((col) => {
-              const style: React.CSSProperties = {
-                ...(col.size ? { width: `${col.size * 100}%` } : {}),
-                ...(col.align ? { textAlign: col.align } : {}),
-                cursor: col.sortable ? "pointer" : undefined,
-              };
-              const isActive = sortState.key === col.key;
-              const arrow = isActive ? (sortState.dir === "asc" ? " ▲" : " ▼") : "";
-              const ariaSort = isActive
-                ? (sortState.dir === "asc" ? "ascending" : "descending")
-                : "none";
-              return (
-                <th
-                  key={col.key}
-                  className={col.headerClassName ?? col.className}
-                  style={style}
-                  onClick={() => toggleSort(col)}
-                  aria-sort={ariaSort as React.AriaAttributes["aria-sort"]}
-                  scope="col"
-                >
-                  {col.headerRender ? col.headerRender() : col.header}
-                  {col.sortable && <span className="sort-arrow">{arrow}</span>}
+    <div className="table-container">
+      <div className="table-scroll">
+        <table className={`user-table${stickyHeader ? " user-table--sticky" : ""}`}>
+          <thead>
+            <tr>
+              {enableSelection && (
+                <th className="th-select">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={(el) => {
+                      if (el) el.indeterminate = indeterminate;
+                    }}
+                    onChange={handleToggleAll}
+                  />
                 </th>
-              );
-            })}
-          </tr>
-        </thead>
-
-        <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={(enableSelection ? 1 : 0) + columns.length} className="no-data">
-                Loading…
-              </td>
-            </tr>
-          ) : sorted.length === 0 ? (
-            <tr>
-              <td colSpan={(enableSelection ? 1 : 0) + columns.length} className="no-data">
-                {emptyText}
-              </td>
-            </tr>
-          ) : (
-            sorted.map((row, index) => {
-              const key = getKey(row, index);
-              const selKey = enableSelection ? getSelKey(row, index) : undefined;
-              const checked = enableSelection && selKey ? selectionIds.has(selKey) : false;
-
-              const cn = `table-row${
-                rowClassName ? ` ${rowClassName(row, index) || ""}` : ""
-              }${onRowClick || onRowDoubleClick ? " row-clickable" : ""}`;
-
-              const rp = rowProps?.(row, index) ?? {};
-
-              const interactive = Boolean(onRowClick || onRowDoubleClick);
-              const enableKb = interactive && activateOnKeyboard;
-
-              const baseRowHandlers = {
-                onClick: onRowClick ? () => onRowClick(row, index) : undefined,
-                onDoubleClick: onRowDoubleClick ? () => onRowDoubleClick(row, index) : undefined,
-                onKeyDown: onRowKeyDown
-                  ? (e: React.KeyboardEvent) => onRowKeyDown(e, row, index)
-                  : onRowClick && enableKb
-                  ? (e: React.KeyboardEvent) => {
-                      if (e.key === "Enter" || e.key === " ") onRowClick(row, index);
-                    }
-                  : undefined,
-              };
-
-              return (
-                <tr
-                  key={key}
-                  className={cn}
-                  style={interactive ? { cursor: "pointer" } : undefined}
-                  tabIndex={enableKb ? 0 : undefined}
-                  role={enableKb ? "button" : undefined}
-                  {...baseRowHandlers}
-                  {...rp}
-                >
-                  {enableSelection && (
-                    <td
-                      className="td-select"
-                      style={{ width: "32px", textAlign: "center" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => selKey != null && onToggleOne(selKey)}
-                        aria-label="Select row"
-                      />
-                    </td>
-                  )}
-
-                  {columns.map((col) => {
-                    const style: React.CSSProperties = {
+              )}
+              {columns.map((col) => {
+                const isActive = sortState.key === col.key;
+                const arrow = isActive ? (sortState.dir === "asc" ? " ▲" : " ▼") : "";
+                return (
+                  <th
+                    key={col.key}
+                    className={col.headerClassName ?? col.className}
+                    style={{
                       ...(col.size ? { width: `${col.size * 100}%` } : {}),
                       ...(col.align ? { textAlign: col.align } : {}),
-                    };
-                    const cp = cellProps?.(row, col, index) ?? {};
-                    const content = col.render
-                      ? col.render(row, index)
-                      : (row as any)[col.key] ?? null;
+                      cursor: col.sortable ? "pointer" : undefined,
+                    }}
+                    onClick={() => toggleSort(col)}
+                  >
+                    {col.headerRender ? col.headerRender() : col.header}
+                    {col.sortable && <span className="sort-arrow">{arrow}</span>}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={(enableSelection ? 1 : 0) + columns.length} className="no-data">
+                  Loading…
+                </td>
+              </tr>
+            ) : sorted.length === 0 ? (
+              <tr>
+                <td colSpan={(enableSelection ? 1 : 0) + columns.length} className="no-data">
+                  {emptyText}
+                </td>
+              </tr>
+            ) : (
+              sorted.map((row, index) => {
+                const key = manager.getKey(row, index);
+                const selKey = enableSelection ? manager.getSelKey(row, index) : undefined;
+                const checked = selKey ? selectionIds.has(selKey) : false;
 
-                    const isPlainText =
-                      typeof content === "string" || typeof content === "number";
-
-                    // Auto tooltip (title) để xem full text khi bị ellipsis
-                    if (cellAutoTooltip && isPlainText && cp.title == null) {
-                      cp.title = String(content);
+                return (
+                  <tr
+                    key={key}
+                    className={`table-row ${rowClassName?.(row, index) || ""}`}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+                    onDoubleClick={onRowDoubleClick ? () => onRowDoubleClick(row, index) : undefined}
+                    onKeyDown={
+                      onRowKeyDown
+                        ? (e) => onRowKeyDown(e, row, index)
+                        : onRowClick && activateOnKeyboard
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") onRowClick(row, index);
+                          }
+                        : undefined
                     }
-
-                    return (
-                      <td key={col.key} className={col.className} style={style} {...cp}>
-                        {content}
+                    {...(rowProps?.(row, index) ?? {})}
+                  >
+                    {enableSelection && (
+                      <td className="td-select" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={checked} onChange={() => selKey && handleToggleOne(selKey)} />
                       </td>
-                    );
-                  })}
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
+                    )}
+                    {columns.map((col) => {
+                      const cp = cellProps?.(row, col, index) ?? {};
+                      const content = col.render ? col.render(row, index) : (row as any)[col.key];
+                      if (cellAutoTooltip && (typeof content === "string" || typeof content === "number") && cp.title == null) {
+                        cp.title = String(content);
+                      }
+                      return (
+                        <td key={col.key} className={col.className} style={{ textAlign: col.align }} {...cp}>
+                          {content}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {showPagination && (
-        <div className="table-pagination" role="group" aria-label="Pagination">
-          <button
-            className="btn-plain"
-            onClick={handlePrev}
-            disabled={page! <= 1}
-            aria-label="Previous page"
-          >
+        <div className="table-pagination">
+          <button className="btn-plain" onClick={() => onPageChange!(1)} disabled={page <= 1}>
+            ⏮ First
+          </button>
+          <button className="btn-plain" onClick={() => onPageChange!(page - 1)} disabled={page <= 1}>
             ◀ Prev
           </button>
           <span className="page-info">
             Page {page} / {totalPages} • Showing{" "}
-            {Math.min((page! - 1) * pageSize! + 1, total!)}–
-            {Math.min(page! * pageSize!, total!)} of {total}
+            {Math.min((page - 1) * pageSize! + 1, total!)}–
+            {Math.min(page * pageSize!, total!)} of {total}
           </span>
-          <button
-            className="btn-plain"
-            onClick={handleNext}
-            disabled={page! >= totalPages}
-            aria-label="Next page"
-          >
+          <button className="btn-plain" onClick={() => onPageChange!(page + 1)} disabled={page >= totalPages}>
             Next ▶
+          </button>
+          <button className="btn-plain" onClick={() => onPageChange!(totalPages)} disabled={page >= totalPages}>
+            Last ⏭
           </button>
         </div>
       )}

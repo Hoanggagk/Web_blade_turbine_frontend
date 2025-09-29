@@ -1,26 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import WindfarmAdminPage from "../pages/WindfarmAdminPage";
-import type { WindfarmUI } from "../pages/WindfarmAdminPage";
-
 import { windfarmService } from "../api/auth/winfarmService";
-import type { WindfarmEntity, WindfarmListResponse } from "../api/types/typewinfarmService";
-
-// Map API → UI
-function mapApiToUI(w: WindfarmEntity): WindfarmUI {
-  return {
-    id: w.id,
-    name: w.name,
-    description: w.description ?? "",
-    own_company: w.own_company ?? "",
-    location: w.location ?? "",
-    projectId: w.project_id,
-    projectName: w.project_name ?? "",
-    createdAt: w.created_at ?? "",
-    updatedAt: w.updated_at ?? "",
-    createdBy: w.created_by ?? "",
-    turbineCount: w.turbine_count ?? 0,
-  };
-}
+import type {
+  WindfarmUI,
+  WindfarmAdminListResponse,
+  WindfarmUpdateRequest,
+} from "../api/types/typewinfarmService";
+import { mapApiToUI } from "../api/types/typewinfarmService";
 
 const useDebounce = <T,>(value: T, delay = 400) => {
   const [v, setV] = useState(value);
@@ -32,28 +18,26 @@ const useDebounce = <T,>(value: T, delay = 400) => {
 };
 
 const WindfarmAdminPageLogic: React.FC = () => {
-  // list state
   const [items, setItems] = useState<WindfarmUI[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [limit] = useState(50);
+  const [limit] = useState(15); // test phân trang nhỏ
   const [loadingList, setLoadingList] = useState(false);
 
-  // client-side search (listAll không có search param)
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 300);
 
-  // detail modal
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailValues, setDetailValues] = useState<Record<string, string>>({});
-  const [loadingDetail] = useState(false); // không gọi API detail riêng
   const [loadingUpdate, setLoadingUpdate] = useState(false);
 
-  // delete per-row
   const [loadingDeleteId, setLoadingDeleteId] = useState<string | null>(null);
 
-  // mounted guard
+  // Bulk delete state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loadingBulkDelete, setLoadingBulkDelete] = useState(false);
+
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -62,18 +46,17 @@ const WindfarmAdminPageLogic: React.FC = () => {
     };
   }, []);
 
-  // fetch listAll
+  /** fetch list windfarms (admin) */
   const fetchList = useCallback(async () => {
     setLoadingList(true);
     const res = await windfarmService.listAll({ limit, offset });
     if (!mounted.current) return;
     setLoadingList(false);
-
     if (!res.ok) {
       if (res.message) alert(res.message);
       return;
     }
-    const payload = res.data as WindfarmListResponse;
+    const payload = res.data as WindfarmAdminListResponse;
     const arr = (payload.windfarms ?? []).map(mapApiToUI);
     setItems(arr);
     setTotal(payload.total ?? arr.length);
@@ -83,119 +66,135 @@ const WindfarmAdminPageLogic: React.FC = () => {
     fetchList();
   }, [fetchList]);
 
-  // Detail open — KHÔNG gọi API, lấy từ items
+  /** open detail modal */
   const onOpenDetail = (wf: WindfarmUI) => {
     setShowDetailModal(true);
     setDetailId(wf.id);
-    const values: Record<string, string> = {
+    setDetailValues({
       id: wf.id,
-      name: wf.name ?? "",
+      name: wf.name,
       description: wf.description ?? "",
       own_company: wf.own_company ?? "",
       location: wf.location ?? "",
-      projectId: wf.projectId ?? "",
-      projectName: wf.projectName ?? "",
-      createdAt: wf.createdAt ?? "",
-      updatedAt: wf.updatedAt ?? "",
-      createdBy: wf.createdBy ?? "",
-      turbineCount: wf.turbineCount != null ? String(wf.turbineCount) : "0",
-    };
-    setDetailValues(values);
+      project_name: wf.project_name ?? "",
+      turbine_count: String(wf.turbine_count ?? 0),
+      created_at: wf.created_at ?? "",
+      updated_at: wf.updated_at ?? "",
+      created_by_name: wf.created_by?.name ?? "",
+    });
   };
-
   const onCloseDetail = () => {
     setShowDetailModal(false);
     setDetailId(null);
     setDetailValues({});
   };
-
   const setDetailValue = (k: string, v: string) =>
     setDetailValues((s) => ({ ...s, [k]: v }));
 
+  /** save detail (update windfarm) */
   const onDetailSave = async () => {
     if (!detailId) return;
-
-    // chỉ gửi field cho phép cập nhật
-    const body = {
-      name: (detailValues.name ?? "").trim() || undefined,
-      location: (detailValues.location ?? "").trim() || undefined,
-      description: (detailValues.description ?? "").trim() || undefined,
-      own_company: (detailValues.own_company ?? "").trim() || undefined,
+    const body: WindfarmUpdateRequest = {
+      name: detailValues.name?.trim() || undefined,
+      location: detailValues.location?.trim() || undefined,
+      description: detailValues.description?.trim() || undefined,
+      own_company: detailValues.own_company?.trim() || undefined,
     };
-
     setLoadingUpdate(true);
     const res = await windfarmService.update(detailId, body);
     if (!mounted.current) return;
     setLoadingUpdate(false);
-
     if (!res.ok) {
       if (res.message) alert(res.message);
       return;
     }
     onCloseDetail();
-    fetchList(); // refresh
+    fetchList();
   };
 
-  // Delete
+  /** delete windfarm */
   const onDelete = async (wf: WindfarmUI) => {
     if (!window.confirm(`Delete windfarm "${wf.name}"?`)) return;
     setLoadingDeleteId(wf.id);
     const res = await windfarmService.remove(wf.id);
     if (!mounted.current) return;
     setLoadingDeleteId(null);
+    if (!res.ok) {
+      if (res.message) alert(res.message);
+      return;
+    }
+    const remaining = items.length - 1;
+    if (remaining <= 0 && offset > 0) setOffset(Math.max(0, offset - limit));
+    else fetchList();
+  };
+
+  /** bulk delete */
+  const onBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.length} windfarms?`)) return;
+
+    setLoadingBulkDelete(true);
+    const res = await windfarmService.bulkDelete(selectedIds);
+    if (!mounted.current) return;
+    setLoadingBulkDelete(false);
 
     if (!res.ok) {
       if (res.message) alert(res.message);
       return;
     }
-
-    // nếu trang hiện tại trống sau khi xóa -> lùi trang
-    const remaining = items.length - 1;
-    if (remaining <= 0 && offset > 0) {
-      setOffset(Math.max(0, offset - limit));
-    } else {
-      fetchList();
-    }
+    setSelectedIds([]);
+    fetchList();
   };
 
-  // client-side search: lọc theo name/company/location/project (không đổi total)
+  /** toggle row select */
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === items.length) setSelectedIds([]);
+    else setSelectedIds(items.map((x) => x.id));
+  };
+
+  /** filter with search */
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((x) => {
-      return (
+    return items.filter(
+      (x) =>
         x.name.toLowerCase().includes(q) ||
         (x.own_company ?? "").toLowerCase().includes(q) ||
         (x.location ?? "").toLowerCase().includes(q) ||
-        (x.projectName ?? "").toLowerCase().includes(q)
-      );
-    });
+        (x.project_name ?? "").toLowerCase().includes(q)
+    );
   }, [items, debouncedSearch]);
 
   return (
     <WindfarmAdminPage
-      // list
       windfarms={filtered}
       loadingList={loadingList}
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
-      // paging (server)
       total={total}
       limit={limit}
       offset={offset}
-      onOffsetChange={(next) => setOffset(next)}
-      // detail/edit
+      onOffsetChange={setOffset}
       showDetailModal={showDetailModal}
       onOpenDetail={onOpenDetail}
       onCloseDetail={onCloseDetail}
       detailValues={detailValues}
       setDetailValue={setDetailValue}
       onDetailSave={onDetailSave}
-      loadingDetail={loadingDetail}
       loadingUpdate={loadingUpdate}
-      // delete
       onDelete={onDelete}
       loadingDeleteId={loadingDeleteId}
+      selectedIds={selectedIds}
+      toggleSelect={toggleSelect}
+      toggleSelectAll={toggleSelectAll}
+      onBulkDelete={onBulkDelete}
+      loadingBulkDelete={loadingBulkDelete}
     />
   );
 };

@@ -1,21 +1,35 @@
 .breadcrumb {
   font-size: 14px;
-  color: #5f6368;
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  color: #5f6368;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
 }
 
 .breadcrumb-item a {
-  color: #1a73e8;
+  color: #5f6368;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .breadcrumb-item a:hover {
-  text-decoration: underline;
+  color: #202124;
+}
+
+.breadcrumb-item.current span {
+  font-weight: 600; /* nổi bật trang hiện tại */
+  color: #202124;
 }
 
 .breadcrumb-separator {
-  margin: 0 4px;
-  color: #80868b;
+  margin: 0 6px;
+  color: #9aa0a6; /* nhạt hơn text */
+  font-size: 13px;
 }

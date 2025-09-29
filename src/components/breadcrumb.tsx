@@ -1,17 +1,16 @@
 // src/components/Breadcrumb.tsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-// (nếu file css của bạn có dấu cách trong folder, giữ nguyên; nếu không, sửa lại path cho đúng)
 import "../components styles/breadcrumb.css";
 
 export type Crumb = {
   label: string;
-  path?: string; // nếu có path thì click được
+  path?: string;
 };
 
 type Props = {
   items: Crumb[];
-  hideFirstSeparator?: boolean; // ✅ thêm prop
+  hideFirstSeparator?: boolean;
 };
 
 const Breadcrumb: React.FC<Props> = ({ items, hideFirstSeparator }) => {
@@ -24,8 +23,11 @@ const Breadcrumb: React.FC<Props> = ({ items, hideFirstSeparator }) => {
         const showSep = !isLast && !(hideFirstSeparator && i === 0);
 
         return (
-          <span key={i} className="breadcrumb-item">
-            {item.path ? (
+          <span
+            key={i}
+            className={`breadcrumb-item ${isLast ? "current" : ""}`}
+          >
+            {!isLast && item.path ? (
               <a
                 href="#"
                 onClick={(e) => {
@@ -39,12 +41,7 @@ const Breadcrumb: React.FC<Props> = ({ items, hideFirstSeparator }) => {
               <span>{item.label}</span>
             )}
             {showSep && (
-              // dấu › nằm NGAY SAU nhãn, không có space trước
-              <span
-                className="breadcrumb-separator"
-                aria-hidden="true"
-                style={{ marginLeft: 0, marginRight: 6 }} // đảm bảo "sczs›⎵Windfarms"
-              >
+              <span className="breadcrumb-separator" aria-hidden="true">
                 ›
               </span>
             )}
@@ -54,5 +51,6 @@ const Breadcrumb: React.FC<Props> = ({ items, hideFirstSeparator }) => {
     </nav>
   );
 };
+
 
 export default Breadcrumb;

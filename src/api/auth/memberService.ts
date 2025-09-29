@@ -1,4 +1,3 @@
-// src/api/services/memberService.ts
 import { api, type ApiResult } from "../../api/core";
 import { MEMBERS } from "../../api/endpoints";
 import type {
@@ -7,9 +6,9 @@ import type {
   ProjectMemberListResponse,
   AdminUserLite,
   AddMemberRequest,
+  ProjectRole,
 } from "../types/typesmemberService";
 
-// Map BE -> UI
 function mapMember(m: ProjectMemberResponse): ProjectMember {
   return {
     project_id: m.project_id,
@@ -23,13 +22,17 @@ function mapMember(m: ProjectMemberResponse): ProjectMember {
 }
 
 export const memberService = {
-  // List (đã map sang UI)
   list: async (
     projectId: string,
     params: { limit: number; offset: number },
     signal?: AbortSignal
-  ): Promise<ApiResult<{ members: ProjectMember[]; total: number; limit: number; offset: number }>> => {
-    const res = await api.get<ProjectMemberListResponse>(MEMBERS.LIST(projectId), { params, signal });
+  ): Promise<
+    ApiResult<{ members: ProjectMember[]; total: number; limit: number; offset: number }>
+  > => {
+    const res = await api.get<ProjectMemberListResponse>(
+      MEMBERS.LIST(projectId),
+      { params, signal }
+    );
     if (!res.ok) return res as any;
     return {
       ok: true,
@@ -44,17 +47,18 @@ export const memberService = {
     };
   },
 
-  // Search users (raw)
   searchUsers: async (
     projectId: string,
     query: string,
     limit = 10,
     signal?: AbortSignal
   ): Promise<ApiResult<AdminUserLite[]>> => {
-    return api.get<AdminUserLite[]>(MEMBERS.SEARCH_USERS(projectId), { params: { query, limit }, signal });
+    return api.get<AdminUserLite[]>(MEMBERS.SEARCH_USERS(projectId), {
+      params: { query, limit },
+      signal,
+    });
   },
 
-  // Add member (payload.role phải là "owner" | "editor" | "viewer")
   add: async (
     projectId: string,
     payload: AddMemberRequest
@@ -64,8 +68,26 @@ export const memberService = {
     return { ok: true, status: res.status, message: res.message, data: mapMember(res.data) };
   },
 
-  // Remove member
+  /** 🔹 Update member role/can_invite */
+  update: async (
+    projectId: string,
+    userId: string,
+    updates: Partial<Pick<ProjectMember, "role" | "can_invite">>
+  ): Promise<ApiResult<ProjectMember>> => {
+    const res = await api.put<ProjectMemberResponse>(
+      MEMBERS.UPDATE(projectId, userId),
+      updates
+    );
+    if (!res.ok) return res as any;
+    return { ok: true, status: res.status, message: res.message, data: mapMember(res.data) };
+  },
+
   remove: async (projectId: string, userId: string): Promise<ApiResult<null>> => {
     return api.delete<null>(MEMBERS.REMOVE(projectId, userId));
+  },
+
+  /** 🔹 Get my role in project */
+  myRole: async (projectId: string): Promise<ApiResult<ProjectRole>> => {
+    return api.get<ProjectRole>(MEMBERS.MY_ROLE(projectId));
   },
 };

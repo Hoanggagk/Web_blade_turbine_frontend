@@ -23,12 +23,11 @@ export type AdminUserLite = {
 };
 
 type MemberProjectPageProps = {
-  // Header
   projectTitle: string;
   onBack: () => void;
   canManage?: boolean;
 
-  // Invite (autocomplete)
+  // Invite
   suggestQuery: string;
   onSuggestQueryChange: (v: string) => void;
   suggestions: AdminUserLite[];
@@ -51,7 +50,11 @@ type MemberProjectPageProps = {
   onRemove: (m: ProjectMember) => void;
   deleteLoading?: string | null;
 
-  // Loading list (tuỳ chọn)
+  // Update role
+  onUpdate: (m: ProjectMember, updates: Partial<Pick<ProjectMember, "role">>) => void;
+  updateLoading?: string | null;
+
+  // Loading list
   loadingList?: boolean;
 };
 
@@ -63,55 +66,42 @@ const formatDate = (iso?: string) => {
 
 const roleText = (r: ProjectMember["role"]) =>
   r === "owner" ? "Owner" : r === "editor" ? "Editor" : "Viewer";
-const roleClass = (r: ProjectMember["role"]) =>
-  r === "owner" ? "role-owner" : r === "editor" ? "role-editor" : "role-viewer";
 
 const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
-  // header
   projectTitle,
   onBack,
   canManage = false,
-
-  // invite
   suggestQuery,
   onSuggestQueryChange,
   suggestions,
   suggestLoading,
   inviteLoading,
   onInviteUserId,
-
-  // filter
   searchTerm,
   onSearchTermChange,
-
-  // table + paging
   members,
   total = 0,
   limit = 50,
   offset = 0,
   onPageChange,
-
-  // actions
   onRemove,
   deleteLoading,
-
-  // loading
+  onUpdate,
+  updateLoading,
   loadingList,
 }) => {
-  // bảng cần id ổn định
   const data = useMemo(
     () => members.map((m) => ({ ...m, id: `${m.project_id}:${m.user_id}` })),
     [members]
   );
 
-  // dropdown state cho invite
   const [activeIndex, setActiveIndex] = useState<number>(-1);
 
   const columns: Column<typeof data[number]>[] = [
     {
       key: "user",
       header: "Member",
-      size: 0.44,
+      size: 0.4,
       sortable: true,
       sortAccessor: (m) => m.user_name.toLowerCase(),
       render: (m) => (
@@ -124,22 +114,31 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
     {
       key: "role",
       header: "Role",
-      size: 0.18,
+      size: 0.2,
       align: "center",
       sortable: true,
       sortAccessor: (m) => m.role,
       headerClassName: "col-center",
       className: "col-center",
-      render: (m) => (
-        <span className={`role-badge ${roleClass(m.role)}`} title={roleText(m.role)}>
-          {roleText(m.role)}
-        </span>
-      ),
+      render: (m) => {
+        const isUpdating = updateLoading === m.user_id;
+        return (
+          <select
+            value={m.role}
+            disabled={!canManage || isUpdating || m.role === "owner"}
+            onChange={(e) => onUpdate(m, { role: e.target.value as ProjectMember["role"] })}
+          >
+            <option value="owner">Owner</option>
+            <option value="editor">Editor</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        );
+      },
     },
     {
       key: "joined_at",
       header: "Joined",
-      size: 0.20,
+      size: 0.2,
       align: "right",
       sortable: true,
       sortAccessor: (m) => m.joined_at || "",
@@ -150,16 +149,18 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
     {
       key: "actions",
       header: "Action",
-      size: 0.18,
+      size: 0.2,
       render: (m) => {
         const isOwner = m.role === "owner";
         const isDeleting = deleteLoading === m.user_id;
+        const cannotDelete = !canManage || isOwner || isDeleting;
+
         return (
           <div style={{ display: "flex", gap: 8 }}>
             <Button
               variant="delete"
               onClick={() => onRemove(m)}
-              disabled={!canManage || isOwner || isDeleting}
+              disabled={cannotDelete}
               loading={isDeleting}
               title={isOwner ? "Owner cannot be removed" : "Remove from project"}
             >
@@ -171,28 +172,11 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
     },
   ];
 
-  // map offset/limit → pagination của GenericTable (1-based page)
   const pageSize = limit || 50;
   const page = Math.floor((offset || 0) / pageSize) + 1;
   const handlePageChange = (nextPage: number) => {
     if (!onPageChange) return;
     onPageChange((nextPage - 1) * pageSize);
-  };
-
-  const handleInviteKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    if (e.key === "ArrowDown" && suggestions.length) {
-      e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === "ArrowUp" && suggestions.length) {
-      e.preventDefault();
-      setActiveIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === "Enter" && activeIndex >= 0 && suggestions[activeIndex]) {
-      e.preventDefault();
-      onSuggestQueryChange(suggestions[activeIndex].email);
-      setActiveIndex(-1);
-    } else if (e.key === "Escape") {
-      setActiveIndex(-1);
-    }
   };
 
   return (
@@ -212,7 +196,6 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
           {/* Invite */}
           <section className="invite-section">
             <div className="invite-label">Invite team members</div>
-
             <div className="invite-row-wrap">
               <div className="invite-row">
                 <input
@@ -221,11 +204,7 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
                   placeholder="Type email or name..."
                   value={suggestQuery}
                   onChange={(e) => { onSuggestQueryChange(e.target.value); setActiveIndex(-1); }}
-                  onKeyDown={handleInviteKeyDown}
                   disabled={!canManage}
-                  aria-autocomplete="list"
-                  aria-expanded={!!suggestQuery && (suggestLoading || suggestions.length > 0)}
-                  aria-controls="invite-suggest-listbox"
                 />
                 <Button
                   className="invite-add-btn"
@@ -233,43 +212,9 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
                   onClick={() => suggestQuery.trim() && onInviteUserId(suggestQuery.trim())}
                   disabled={!canManage || !suggestQuery.trim() || !!inviteLoading}
                   loading={!!inviteLoading}
-                  title="Add member by email"
                 >
                   Add
                 </Button>
-              </div>
-
-              {/* Suggest dropdown */}
-              <div
-                id="invite-suggest-listbox"
-                className="suggest-dropdown"
-                style={{
-                  display:
-                    suggestQuery && (suggestLoading || suggestions.length > 0) ? "block" : "none",
-                }}
-                role="listbox"
-                aria-label="User suggestions"
-              >
-                {suggestLoading ? (
-                  <div className="suggest-loading">Searching…</div>
-                ) : suggestions.length ? (
-                  suggestions.map((u, i) => (
-                    <div
-                      key={u.id}
-                      className={`suggest-item${i === activeIndex ? " active" : ""}`}
-                      role="option"
-                      aria-selected={i === activeIndex}
-                      onMouseEnter={() => setActiveIndex(i)}
-                      onMouseLeave={() => setActiveIndex(-1)}
-                      onClick={() => { onSuggestQueryChange(u.email); setActiveIndex(-1); }}
-                    >
-                      <div className="suggest-name">{u.name}</div>
-                      <div className="suggest-email">{u.email}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="suggest-empty">No results</div>
-                )}
               </div>
             </div>
           </section>
@@ -286,7 +231,7 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
             />
           </section>
 
-          {/* Table (clean, đồng kiểu) */}
+          {/* Table */}
           <div className="table-wrap">
             <GenericTable<typeof data[number]>
               data={data}
@@ -294,11 +239,6 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
               loading={!!loadingList}
               emptyText="No members"
               stickyHeader
-              // chặn nổi bọt ở ô actions
-              cellProps={(_row, col) =>
-                col.key === "actions" ? { onClick: (e) => e.stopPropagation() } : {}
-              }
-              // Pagination built-in
               page={page}
               pageSize={pageSize}
               total={total}

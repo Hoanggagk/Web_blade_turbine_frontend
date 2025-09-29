@@ -1,12 +1,12 @@
-import { api } from "../core";
+import { api, type ApiResult } from "../core";
 import { WINDFARMS } from "../endpoints";
-import type { ApiResult } from "../core";
 import type {
   WindfarmCreateRequest,
   WindfarmUpdateRequest,
   WindfarmBatchCreateRequest,
-  WindfarmEntity,
+  WindfarmResponse,
   WindfarmListResponse,
+  WindfarmAdminListResponse,
   WindfarmBatchResponse,
   WindfarmBulkDeleteResult,
 } from "../types/typewinfarmService";
@@ -16,7 +16,7 @@ export const windfarmService = {
   create: (
     project_id: string,
     data: WindfarmCreateRequest
-  ): Promise<ApiResult<WindfarmEntity>> =>
+  ): Promise<ApiResult<WindfarmResponse>> =>
     api.post(WINDFARMS.CREATE(project_id), data),
 
   /** POST /windfarms/project/{project_id}/batch */
@@ -43,20 +43,20 @@ export const windfarmService = {
   listAll: (params?: {
     limit?: number;
     offset?: number;
-  }): Promise<ApiResult<WindfarmListResponse>> => {
+  }): Promise<ApiResult<WindfarmAdminListResponse>> => {
     const { limit = 100, offset = 0 } = params ?? {};
     return api.get(WINDFARMS.LIST_ALL, { params: { limit, offset } });
   },
 
   /** GET /windfarms/{windfarm_id} */
-  detail: (windfarm_id: string): Promise<ApiResult<WindfarmEntity>> =>
+  detail: (windfarm_id: string): Promise<ApiResult<WindfarmResponse>> =>
     api.get(WINDFARMS.DETAIL(windfarm_id)),
 
   /** PUT /windfarms/{windfarm_id} */
   update: (
     windfarm_id: string,
     data: WindfarmUpdateRequest
-  ): Promise<ApiResult<WindfarmEntity>> =>
+  ): Promise<ApiResult<WindfarmResponse>> =>
     api.put(WINDFARMS.UPDATE(windfarm_id), data),
 
   /** DELETE /windfarms/{windfarm_id} */

@@ -48,36 +48,33 @@ const MemberProjectLogic: React.FC<Props> = ({
   // per-row delete
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
+  // 🔹 per-row update
+  const [updateLoading, setUpdateLoading] = useState<string | null>(null);
+
   // reload trigger
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
 
   // fetch members (paged)
-useEffect(() => {
-  const ctrl = new AbortController();
-  setLoadingList(true);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    setLoadingList(true);
 
-  memberService
-    .list(projectId, { limit, offset }, ctrl.signal)
-    .then((res) => {
-      // ✅ Nếu request bị hủy thì bỏ qua luôn
-      if (res.message === "canceled") return;
+    memberService
+      .list(projectId, { limit, offset }, ctrl.signal)
+      .then((res) => {
+        if (res.message === "canceled") return;
+        if (!res.ok) {
+          alert(res.message || "Failed to load project members");
+          return;
+        }
+        setMembers(res.data.members);
+        setTotal(res.data.total ?? 0);
+      })
+      .finally(() => setLoadingList(false));
 
-      // ❌ Nếu có lỗi khác thì alert
-      if (!res.ok) {
-        alert(res.message || "Failed to load project members");
-        return;
-      }
-
-      // ✅ Nếu thành công thì cập nhật state
-      setMembers(res.data.members);
-      setTotal(res.data.total ?? 0);
-    })
-    .finally(() => setLoadingList(false));
-
-  return () => ctrl.abort();
-}, [projectId, limit, offset, reloadKey]);
-
+    return () => ctrl.abort();
+  }, [projectId, limit, offset, reloadKey]);
 
   // fetch suggestions
   useEffect(() => {
@@ -94,7 +91,7 @@ useEffect(() => {
     return () => ctrl.abort();
   }, [projectId, canManage, debouncedSuggest]);
 
-  // actions
+  // invite
   const handleInviteUserId = useCallback(
     async (userIdOrEmail: string) => {
       if (inviteLoading) return;
@@ -121,6 +118,7 @@ useEffect(() => {
     [inviteLoading, suggestions, projectId, refresh]
   );
 
+  // remove
   const handleRemove = useCallback(
     async (m: ProjectMember) => {
       if (m.role === "owner") {
@@ -138,7 +136,6 @@ useEffect(() => {
         return;
       }
 
-      // nếu trang hiện tại trống sau khi xóa -> lùi trang; ngược lại refresh
       const willCount = members.length - 1;
       if (willCount <= 0 && offset > 0) {
         setOffset(Math.max(0, offset - limit));
@@ -147,6 +144,22 @@ useEffect(() => {
       }
     },
     [members.length, offset, limit, projectId, refresh]
+  );
+
+  // 🔹 update role / can_invite
+  const handleUpdate = useCallback(
+    async (m: ProjectMember, updates: Partial<Pick<ProjectMember, "role" | "can_invite">>) => {
+      setUpdateLoading(m.user_id);
+      const res = await memberService.update(projectId, m.user_id, updates);
+      setUpdateLoading(null);
+
+      if (!res.ok) {
+        alert(res.message || "Failed to update member");
+        return;
+      }
+      refresh();
+    },
+    [projectId, refresh]
   );
 
   const handleOffsetChange = useCallback((nextOffset: number) => {
@@ -164,7 +177,7 @@ useEffect(() => {
     );
   }, [members, debouncedSearch]);
 
-  // khi đang search -> không đổi offset/limit; hiển thị tất cả kết quả
+  // paging
   const paging = useMemo(() => {
     if (debouncedSearch.trim()) {
       return { total: filtered.length, limit: filtered.length || 1, offset: 0 };
@@ -174,7 +187,6 @@ useEffect(() => {
 
   return (
     <MemberProjectPage
-      // header
       projectTitle={projectTitle}
       onBack={onBack}
       canManage={canManage}
@@ -197,6 +209,8 @@ useEffect(() => {
       // actions
       onRemove={handleRemove}
       deleteLoading={deleteLoading}
+      onUpdate={handleUpdate}       // 🔹 thêm
+      updateLoading={updateLoading} // 🔹 thêm
       // loading
       loadingList={loadingList}
     />

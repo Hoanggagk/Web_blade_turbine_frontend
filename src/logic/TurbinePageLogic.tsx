@@ -1,15 +1,23 @@
-// src/pages/TurbinePageLogic.tsx
 import React, { useEffect, useState } from "react";
-import TurbinePage, { type TurbineUI } from "../pages/TurbinePage";
+import TurbinePage from "../pages/TurbinePage";
 import { turbineService } from "../api/auth/turbineService";
-import type { Turbine } from "../api/types/typeturbineService";
-import { useParams, useLocation} from "react-router-dom";
+import type {
+  TurbineUI,
+  TurbineItem,
+  TurbineCreateRequest,
+  TurbineUpdateRequest,
+} from "../api/types/typeturbineService";
+
+import { mapApiToUI } from "../api/types/typeturbineService";
+
+import { useParams, useLocation } from "react-router-dom";
 
 type LocationState = {
   project?: { id: string; name: string };
   windfarm?: { id: string; name: string };
 };
 
+/** UI form state cho Create */
 type CreateValues = {
   name: string;
   serialNo?: string;
@@ -18,24 +26,9 @@ type CreateValues = {
   description?: string;
 };
 
-function mapApiToUI(t: Turbine): TurbineUI {
-  return {
-    id: t.id,
-    name: t.name,
-    description: t.description ?? "",
-    windfarmId: t.windfarm_id,
-    windfarmName: t.windfarm_name ?? "",
-    serialNo: t.serial_no ?? "",
-    capacityMw: t.capacity_mw ?? undefined,
-    coordinates: t.coordinates ?? "",
-    createdAt: t.created_at ?? "",
-    updatedAt: t.updated_at ?? "",
-    createdBy: t.created_by ?? "",
-  };
-}
-
-function mapUIToUpdatePayload(values: Record<string, string>) {
-  const payload: any = {};
+/** Map UI → Update payload (chuẩn type UpdateRequest) */
+function mapUIToUpdatePayload(values: Record<string, string>): TurbineUpdateRequest {
+  const payload: TurbineUpdateRequest = {};
   if (values.name) payload.name = values.name;
   if (values.description !== undefined) payload.description = values.description;
   if (values.serialNo !== undefined) payload.serial_no = values.serialNo;
@@ -47,6 +40,7 @@ function mapUIToUpdatePayload(values: Record<string, string>) {
   return payload;
 }
 
+/** debounce hook */
 const useDebounced = (value: string, delay = 300) => {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -66,7 +60,7 @@ const TurbinePageLogic: React.FC = () => {
   const projectId = locState.project?.id || "";
   const projectName = locState.project?.name || "";
 
-  // list state
+  /** list state */
   const [turbines, setTurbines] = useState<TurbineUI[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,25 +69,23 @@ const TurbinePageLogic: React.FC = () => {
   const [limit, setLimit] = useState(50);
   const [offset, setOffset] = useState(0);
 
-  // create state
+  /** create state */
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createValues, setCreateValuesState] = useState<CreateValues>({ name: "" });
-  const setCreateValues = (k: keyof CreateValues, v: string) =>
+  const updateCreateValues = (k: keyof CreateValues, v: string) =>
     setCreateValuesState((s) => ({ ...s, [k]: v }));
   const [loadingCreate, setLoadingCreate] = useState(false);
 
-  // detail state
+  /** detail state */
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailValues, setDetailValues] = useState<Record<string, string>>({});
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadingUpdate, setLoadingUpdate] = useState(false);
 
-  // delete
+  /** delete state */
   const [loadingDeleteId, setLoadingDeleteId] = useState<string | null>(null);
 
-  // fetch list
-  useEffect(() => { console.log("[MOUNT] TurbinePageLogic"); }, []);
-
+  /** fetch list */
   useEffect(() => {
     if (!windfarmId) return;
     const ctrl = new AbortController();
@@ -120,7 +112,7 @@ const TurbinePageLogic: React.FC = () => {
     return () => ctrl.abort();
   }, [windfarmId, limit, offset, debouncedSearch]);
 
-  // create
+  /** create */
   const onOpenCreate = () => setShowCreateModal(true);
   const onCloseCreate = () => setShowCreateModal(false);
 
@@ -129,7 +121,7 @@ const TurbinePageLogic: React.FC = () => {
     if (!createValues.name.trim()) return;
     setLoadingCreate(true);
 
-    const payload = {
+    const payload: TurbineCreateRequest = {
       name: createValues.name.trim(),
       description: createValues.description?.trim() || undefined,
       serial_no: createValues.serialNo?.trim() || undefined,
@@ -141,35 +133,35 @@ const TurbinePageLogic: React.FC = () => {
     };
 
     turbineService
-      .create(windfarmId, payload as any)
+      .create(windfarmId, payload)
       .then((res) => {
         if (!res.ok) {
           alert(res.message || "Create turbine failed");
           return;
         }
-        // refresh first page
-        setOffset(0);
+        setOffset(0); // reload first page
         setShowCreateModal(false);
         setCreateValuesState({ name: "" });
       })
       .finally(() => setLoadingCreate(false));
   };
 
-  // detail
+  /** detail */
   const onOpenDetail = (tb: TurbineUI) => {
     setLoadingDetail(true);
     setDetailValues({
       id: tb.id,
-      windfarmId: tb.windfarmId,
-      windfarmName: tb.windfarmName ?? "",
+      windfarmId: tb.windfarm_id,
+      windfarmName: tb.windfarm_name ?? "",
       name: tb.name,
-      serialNo: tb.serialNo ?? "",
-      capacityMw: tb.capacityMw !== undefined ? String(tb.capacityMw) : "",
+      serialNo: tb.serial_no ?? "",
+      capacityMw: String(tb.capacity_mw ?? ""),
       coordinates: tb.coordinates ?? "",
       description: tb.description ?? "",
-      createdAt: tb.createdAt ?? "",
-      updatedAt: tb.updatedAt ?? "",
-      createdBy: tb.createdBy ?? "",
+      createdAt: tb.created_at ?? "",
+      updatedAt: tb.updated_at ?? "",
+      createdBy: tb.created_by?.id ?? "",
+      createdByName: tb.created_by?.name ?? "",
     });
     setShowDetailModal(true);
     setLoadingDetail(false);
@@ -191,6 +183,7 @@ const TurbinePageLogic: React.FC = () => {
           alert(res.message || "Update turbine failed");
           return;
         }
+        // refetch list
         const ctrl = new AbortController();
         setLoadingList(true);
         turbineService
@@ -211,7 +204,7 @@ const TurbinePageLogic: React.FC = () => {
       .finally(() => setLoadingUpdate(false));
   };
 
-  // delete
+  /** delete */
   const onDelete = (tb: TurbineUI) => {
     if (!confirm(`Delete turbine "${tb.name}"?`)) return;
     setLoadingDeleteId(tb.id);
@@ -241,12 +234,6 @@ const TurbinePageLogic: React.FC = () => {
       .finally(() => setLoadingDeleteId(null));
   };
 
-  // optional row click
-  const onRowClick = (_tb: TurbineUI) => {};
-
-  const setCreateValuesProxy = (k: keyof CreateValues, v: string) => setCreateValues(k, v);
-  const setDetailValue = (k: string, v: string) => setDetailValues((s) => ({ ...s, [k]: v }));
-
   return (
     <TurbinePage
       projectId={projectId}
@@ -265,20 +252,20 @@ const TurbinePageLogic: React.FC = () => {
       onOpenCreate={onOpenCreate}
       onCloseCreate={onCloseCreate}
       createValues={createValues}
-      setCreateValues={setCreateValuesProxy}
+      setCreateValues={updateCreateValues}
       onCreateSubmit={onCreateSubmit}
       loadingCreate={loadingCreate}
       showDetailModal={showDetailModal}
       onOpenDetail={onOpenDetail}
       onCloseDetail={onCloseDetail}
       detailValues={detailValues}
-      setDetailValue={setDetailValue}
+      setDetailValue={(k, v) => setDetailValues((s) => ({ ...s, [k]: v }))}
       onDetailSave={onDetailSave}
       loadingDetail={loadingDetail}
       loadingUpdate={loadingUpdate}
       onDelete={onDelete}
       loadingDeleteId={loadingDeleteId}
-      onRowClick={onRowClick}
+      onRowClick={() => {}}
     />
   );
 };

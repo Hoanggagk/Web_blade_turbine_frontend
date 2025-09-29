@@ -1,65 +1,50 @@
-// src/logic/ProjectManagementLogic.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProjectManagementPage from "../pages/ProjectManagementPage";
-import type { Project } from "../pages/ProjectManagementPage";
 import { projectService } from "../api/auth/projectService";
-import type { ProjectResponse as ApiProject } from "../api/types/typesprojectService";
-
-type ListResponse = {
-  projects: ApiProject[];
-  total: number;
-  limit: number;
-  offset: number;
-};
-
-function toUpperUnderscore(s?: string): string {
-  return (s ?? "").toUpperCase();
-}
-
-function mapApiToUI(p: ApiProject): Project {
-  return {
-    id: p.id,
-    name: p.name,
-    windfarmCount: (p as any).windfarm_count ?? 0,
-    description: p.description ?? "",
-    performance: "N/A",
-    createdAt: (p as any).created_at ?? "",
-    status: toUpperUnderscore((p as any).status),
-  };
-}
+import type {
+  ProjectUI,
+  ProjectResponse,
+  ProjectListResponse,
+} from "../api/types/typesprojectService";
+import { mapApiToUI } from "../api/types/typesprojectService";
 
 const ProjectManagementLogic: React.FC = () => {
   const navigate = useNavigate();
 
-  // ===== list & search =====
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectUI[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loadingList, setLoadingList] = useState(false);
 
-  // ===== create modal =====
+  // Create
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [loadingCreate, setLoadingCreate] = useState(false);
 
-  // ===== delete per-row loading =====
+  // Update
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [loadingEdit, setLoadingEdit] = useState(false);
+
+  // Delete
   const [loadingDeleteId, setLoadingDeleteId] = useState<string | null>(null);
 
-  // ===== race-condition guard =====
-  const listReqIdRef = useRef(0);
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
+  // Pagination (client-side)
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
+  const listReqIdRef = useRef(0);
+
+  // ====== Fetch Projects ======
   const fetchProjects = useCallback(async () => {
     setLoadingList(true);
     const reqId = ++listReqIdRef.current;
 
-    const res = await projectService.list();
-    if (reqId !== listReqIdRef.current || !mountedRef.current) return;
+    const res = await projectService.listAll();
+    if (reqId !== listReqIdRef.current) return;
 
     if (!res.ok) {
       alert(res.message || "Failed to fetch projects");
@@ -67,89 +52,133 @@ const ProjectManagementLogic: React.FC = () => {
       return;
     }
 
-    const payload = res.data as ListResponse;
-    const raw = payload?.projects ?? [];
-    const mapped = raw.map(mapApiToUI).sort((a, b) =>
-      (b.createdAt || "").localeCompare(a.createdAt || "")
-    );
+    const payload = res.data as ProjectListResponse;
+    const mapped = (payload?.projects ?? [])
+      .map(mapApiToUI)
+      .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
 
     setProjects(mapped);
     setLoadingList(false);
   }, []);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
-
-  // Refresh nhẹ khi quay lại tab
   useEffect(() => {
-    const onFocus = () => fetchProjects();
-    window.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("focus", onFocus);
-    };
+    fetchProjects();
   }, [fetchProjects]);
 
-  // ===== client-side search =====
+  // Refresh khi quay lại tab
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchProjects();
+    };
+    window.addEventListener("visibilitychange", onVisible);
+    return () => window.removeEventListener("visibilitychange", onVisible);
+  }, [fetchProjects]);
+
+  // ====== Derived ======
   const filtered = useMemo(() => {
     const k = searchTerm.trim().toLowerCase();
     if (!k) return projects;
     return projects.filter((p) => p.name.toLowerCase().includes(k));
   }, [projects, searchTerm]);
 
-  // ===== Create =====
+  const total = filtered.length;
+  const paged = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page]);
+
+  // ====== Create ======
   const onCreateClick = () => setShowCreateModal(true);
   const onCancelCreate = () => {
     setShowCreateModal(false);
     setNewName("");
     setNewDescription("");
   };
+
   const onCreateSubmit = async (name: string, description: string) => {
-    const n = name.trim();
-    const d = description.trim();
-    if (!n) return;
+    if (!name.trim()) return;
     setLoadingCreate(true);
-    const res = await projectService.create({ name: n, description: d });
+    const res = await projectService.create({
+      name: name.trim(),
+      description: description.trim(),
+    });
     setLoadingCreate(false);
 
     if (!res.ok) {
       alert(res.message || "Create project failed");
       return;
     }
-    const created = mapApiToUI(res.data as ApiProject);
+
+    const created = mapApiToUI(res.data as ProjectResponse);
     setProjects((prev) => [created, ...prev]);
-    setShowCreateModal(false);
-    setNewName("");
-    setNewDescription("");
+    onCancelCreate();
   };
 
-  // ===== Management (điều hướng) =====
-  const onManageClick = (p: Project) => {
-    navigate(`/project-management/${p.id}/members`, { state: { project: p } });
+  // ====== Update ======
+  const onEditClick = (p: ProjectUI) => {
+    setEditId(p.id);
+    setEditName(p.name);
+    setEditDescription(p.description);
+    setShowEditModal(true);
   };
 
-  // ===== Delete (placeholder – BE chưa có DELETE) =====
-  const onDeleteClick = async (p: Project) => {
-    setLoadingDeleteId(p.id);
-    try {
-      alert("Delete project chưa được backend hỗ trợ trong spec hiện tại.");
-      // Khi có API:
-      // const res = await projectService.remove(p.id);
-      // if (!res.ok) { alert(res.message || "Delete failed"); return; }
-      // setProjects(prev => prev.filter(x => x.id !== p.id));
-    } finally {
-      setLoadingDeleteId(null);
+  const onCancelEdit = () => {
+    setShowEditModal(false);
+    setEditId(null);
+    setEditName("");
+    setEditDescription("");
+  };
+
+  const onEditSubmit = async (name: string, description: string) => {
+    if (!editId) return;
+    setLoadingEdit(true);
+    const res = await projectService.update(editId, {
+      name: name.trim(),
+      description: description.trim(),
+    });
+    setLoadingEdit(false);
+
+    if (!res.ok) {
+      alert(res.message || "Update project failed");
+      return;
     }
+
+    const updated = mapApiToUI(res.data as ProjectResponse);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === updated.id ? updated : p))
+    );
+    onCancelEdit();
+  };
+
+  // ====== Delete ======
+  const onDeleteClick = async (p: ProjectUI) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete project "${p.name}"?`
+    );
+    if (!confirmDelete) return;
+
+    setLoadingDeleteId(p.id);
+    const res = await projectService.remove(p.id);
+    setLoadingDeleteId(null);
+
+    if (!res.ok) {
+      alert(res.message || "Delete project failed");
+      return;
+    }
+
+    setProjects((prev) => prev.filter((x) => x.id !== p.id));
+  };
+
+  const onManageClick = (p: ProjectUI) => {
+    navigate(`/project-management/${p.id}/members`, { state: { project: p } });
   };
 
   return (
     <ProjectManagementPage
-      // dữ liệu + search
-      projects={filtered}
+      projects={paged}
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
-
-      // create modal
+      // create
       showCreateModal={showCreateModal}
       newName={newName}
       setNewName={setNewName}
@@ -159,14 +188,26 @@ const ProjectManagementLogic: React.FC = () => {
       onCancelCreate={onCancelCreate}
       onCreateSubmit={onCreateSubmit}
       loadingCreate={loadingCreate}
-
+      // edit
+      showEditModal={showEditModal}
+      editName={editName}
+      setEditName={setEditName}
+      editDescription={editDescription}
+      setEditDescription={setEditDescription}
+      onCancelEdit={onCancelEdit}
+      onEditSubmit={onEditSubmit}
+      loadingEdit={loadingEdit}
       // actions
       onManageClick={onManageClick}
+      onEditClick={onEditClick}
       onDeleteClick={onDeleteClick}
       loadingDeleteId={loadingDeleteId}
-
-      // loading vùng bảng
       loadingList={loadingList}
+      // paging
+      total={total}
+      page={page}
+      pageSize={pageSize}
+      onPageChange={setPage}   // 👈 bạn bị thiếu dòng này
     />
   );
 };

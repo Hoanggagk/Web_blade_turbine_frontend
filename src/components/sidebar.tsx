@@ -12,15 +12,15 @@ function Sidebar() {
 
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // ✅ mở/đóng nhóm Manage: khởi tạo an toàn, sau đó sync theo route + saved
+  // ✅ mở/đóng nhóm Manage
   const [openManage, setOpenManage] = useState<boolean>(false);
   useEffect(() => {
     const p = location.pathname;
     const inManage =
       p.startsWith("/user") ||
       p.startsWith("/project-management") ||
-      p.startsWith("/windfarm") ||              // gồm cả /windfarm và /windfarm-management
-      p.startsWith("/windfarm-management");
+      p.startsWith("/windfarm-management") ||
+      p.startsWith("/audit-logs"); // ✅ thêm audit
     const saved = localStorage.getItem("sidebar.manageOpen") === "1";
     setOpenManage(inManage || saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -40,7 +40,8 @@ function Sidebar() {
     if (
       path.startsWith("/user") ||
       path.startsWith("/project-management") ||
-      path.startsWith("/windfarm-management")
+      path.startsWith("/windfarm-management") ||
+      path.startsWith("/audit-logs") // ✅ thêm audit
     ) {
       return "manage";
     }
@@ -48,10 +49,11 @@ function Sidebar() {
   }, [path]);
 
   // ✅ Submenu Manage
-  const activeSub = useMemo<"user" | "project" | "windfarm" | "">(() => {
+  const activeSub = useMemo<"user" | "project" | "windfarm" | "log" | "">(() => {
     if (path.startsWith("/user")) return "user";
     if (path.startsWith("/project-management")) return "project";
     if (path.startsWith("/windfarm-management")) return "windfarm";
+    if (path.startsWith("/audit-logs")) return "log"; // ✅ thêm audit
     return "";
   }, [path]);
 
@@ -78,7 +80,8 @@ function Sidebar() {
     const inManage =
       path.startsWith("/user") ||
       path.startsWith("/project-management") ||
-      path.startsWith("/windfarm-management");
+      path.startsWith("/windfarm-management") ||
+      path.startsWith("/audit-logs"); // ✅ thêm audit
     if (inManage) setOpenManage(true);
   }, [path]);
 
@@ -145,7 +148,12 @@ function Sidebar() {
               <span className="caret" aria-hidden="true" />
             </button>
 
-            <ul id={submenuId} className="submenu" role="menu" aria-label="Manage submenu">
+            <ul
+              id={submenuId}
+              className="submenu"
+              role="menu"
+              aria-label="Manage submenu"
+            >
               <li
                 className={activeSub === "user" ? "active" : ""}
                 role="menuitem"
@@ -198,6 +206,25 @@ function Sidebar() {
                 }}
               >
                 <span className="dot" aria-hidden="true" /> Windfarm Management
+              </li>
+
+              {/* ✅ New: Audit Logs (Admin only) */}
+              <li
+                className={activeSub === "log" ? "active" : ""}
+                role="menuitem"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNavigate("/audit-logs");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleNavigate("/audit-logs");
+                  }
+                }}
+              >
+                <span className="dot" aria-hidden="true" /> Audit Logs
               </li>
             </ul>
           </li>

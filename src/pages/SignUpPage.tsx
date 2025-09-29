@@ -40,7 +40,6 @@ function SignUpPage({
       <div className="sign-up-form-container">
         <h1 className="sign-up-title">SIGN UP</h1>
 
-        {/* Form: để required chạy trước → dùng HTML5 validation */}
         <form onSubmit={onSignUp}>
           {/* Name */}
           <div className="input-form-container">
@@ -54,6 +53,7 @@ function SignUpPage({
                 value={name}
                 onChange={(e) => onChangeName(e.target.value)}
                 required
+                minLength={2}
               />
             </div>
           </div>
@@ -80,12 +80,14 @@ function SignUpPage({
             <div className="input-container">
               <input
                 className="sign-up-input"
-                type="text"
+                type="tel"
                 id="phone"
                 placeholder="Enter your phone"
                 value={phone}
                 onChange={(e) => onChangePhone(e.target.value)}
                 required
+                pattern="^[0-9]{10,11}$"
+                title="Số điện thoại phải có 10–11 chữ số"
               />
             </div>
           </div>
@@ -102,6 +104,8 @@ function SignUpPage({
                 value={password}
                 onChange={(e) => onChangePassword(e.target.value)}
                 required
+                minLength={6}
+                title="Mật khẩu phải có ít nhất 6 ký tự"
               />
             </div>
           </div>
@@ -118,6 +122,8 @@ function SignUpPage({
                 value={confirmPassword}
                 onChange={(e) => onChangeConfirmPassword(e.target.value)}
                 required
+                minLength={6}
+                title="Mật khẩu phải có ít nhất 6 ký tự"
               />
             </div>
           </div>

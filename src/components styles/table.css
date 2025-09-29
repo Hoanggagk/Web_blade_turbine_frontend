@@ -1,8 +1,15 @@
 .table-container {
   width: 100%;
-  overflow-x: auto;
   border: 1px solid #ccc;
   background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-scroll {
+  max-height: 800px;       /* 👈 khung cố định */
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 /* ================== Table ================== */
@@ -48,35 +55,23 @@ td.no-data {
   padding: 15px 0;
 }
 
-.status-active {
-  color: #219744;
-  font-weight: 600;
-}
+.status-active { color: #219744; font-weight: 600; }
+.status-inactive { color: #DD0000; font-weight: 600; }
 
-.status-inactive {
-  color: #DD0000;
-  font-weight: 600;
-}
-/* ===== Sticky header (tùy chọn qua prop stickyHeader) ===== */
+/* ===== Sticky header ===== */
 .user-table.user-table--sticky thead th {
   position: sticky;
   top: 0;
-  background: #f1f1f1; /* đồng nhất với header */
+  background: #f1f1f1;
   z-index: 2;
 }
 
-/* clickable row feedback + focus a11y */
+/* clickable row feedback */
 .table-row.row-clickable { cursor: pointer; }
-.table-row:focus {
-  outline: 2px solid #1e88e5;
-  outline-offset: -2px;
-}
+.table-row:focus { outline: 2px solid #1e88e5; outline-offset: -2px; }
 
 /* selection column */
-.th-select, .td-select {
-  text-align: center;
-  background: #f9f9f9;
-}
+.th-select, .td-select { text-align: center; background: #f9f9f9; }
 
 /* sort arrow */
 .sort-arrow { margin-left: 4px; opacity: 0.7; }
@@ -99,10 +94,7 @@ td.no-data {
   font-size: 13px;
   cursor: pointer;
 }
-.btn-plain:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn-plain:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* tuyệt đối không bo cong */
 .table-container, .user-table, .user-table th, .user-table td, .btn-plain {

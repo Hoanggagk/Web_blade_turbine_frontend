@@ -1,67 +1,103 @@
-// src/api/types/typesprojectService.ts
+/** ----- COMMON TYPES ----- */
+export type ISODate = string;
 
-// ---- Role: dùng object làm "value", union làm "type"
+export interface UserRef {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/** ----- ENUM ROLES ----- */
 export const ProjectRole = {
   OWNER: "owner",
   MANAGER: "manager",
   EDITOR: "editor",
   VIEWER: "viewer",
 } as const;
-
-// Kiểu type: "owner" | "manager" | "editor" | "viewer"
 export type ProjectRoleEnum = typeof ProjectRole[keyof typeof ProjectRole];
 
-// ---- Status: tương tự
-export const ProjectStatus = {
-  NOT_STARTED: "not_started",
-  ACTIVE: "active",
-  PAUSED: "paused",
-  COMPLETED: "completed",
-} as const;
+/** ----- RAW DB (theo table projects) ----- */
+export interface ProjectDB {
+  id: string;             // uuid
+  name: string;           // varchar(255)
+  description?: string | null;
+  created_at?: ISODate | null;  // default CURRENT_TIMESTAMP
+  updated_at?: ISODate | null;  // default CURRENT_TIMESTAMP
+  created_by: string;     // uuid (user.id)
+}
 
-export type ProjectStatusEnum = typeof ProjectStatus[keyof typeof ProjectStatus];
-
-export type ProjectCreateRequest = {
+/** ----- REQUESTS (FE gửi lên) ----- */
+export interface ProjectCreateRequest {
   name: string;
   description?: string;
-  location?: string;
-  status?: ProjectStatusEnum;
-};
+}
 
-export type ProjectUpdateRequest = {
+export interface ProjectUpdateRequest {
   name?: string;
   description?: string;
-  location?: string;
-  status?: ProjectStatusEnum;
-};
+}
 
-export type ProjectEntity = {
+export type ProjectBulkDeleteRequest = string[];
+
+/** ----- RESPONSES (BE trả về) ----- */
+export interface ProjectItem {
   id: string;
   name: string;
   description?: string | null;
-  location?: string | null;
-  status: ProjectStatusEnum;
+  created_at?: ISODate | null;
+  updated_at?: ISODate | null;
+  created_by: UserRef;
 
-  created_at: string;
-  updated_at?: string | null;
-  created_by?: string | null;
-
-  invite_code?: string | null;
-  invite_expires_at?: string | null;
-
+  // Optional stats
+  member_count?: number;
   windfarm_count?: number;
   turbine_count?: number;
-  member_count?: number;
 
+  // Optional role info (chỉ khi gọi /projects/)
   user_role?: ProjectRoleEnum;
-  user_joined_at?: string | null;
-};
+  user_joined_at?: ISODate | null;
+}
 
-export type ProjectResponse = ProjectEntity;
-
-export type ProjectListResponse = {
-  projects: ProjectEntity[];
+/** GET /projects/ */
+export interface ProjectListResponse {
+  projects: ProjectItem[];
   total: number;
   limit: number;
   offset: number;
-};
+}
+
+/** GET /projects/list (admin only) */
+export interface ProjectAdminListResponse {
+  projects: ProjectItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** GET detail, POST create, PUT update */
+export type ProjectResponse = ProjectItem;
+
+/** DELETE bulk */
+export interface ProjectBulkDeleteResult {
+  deleted_count: number;
+  total_requested: number;
+  errors?: string[];
+}
+
+/** ----- UI MODEL (FE normalize form) ----- */
+export interface ProjectUI
+  extends Omit<ProjectItem, "description"> {
+  description: string;
+}
+
+export function mapApiToUI(p: ProjectItem): ProjectUI {
+  return {
+    ...p,
+    description: p.description ?? "",
+    member_count: p.member_count ?? 0,
+    windfarm_count: p.windfarm_count ?? 0,
+    turbine_count: p.turbine_count ?? 0,
+    user_role: p.user_role ?? undefined,
+    user_joined_at: p.user_joined_at ?? null,
+  };
+}
