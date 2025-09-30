@@ -80,14 +80,13 @@ export const TURBINES = {
 // =======================
 // Audit
 // =======================
+
 export const AUDIT = {
-  PROJECT_LOGS: (project_id: string) => `/audit/project/${project_id}`,               // GET
-  MY_ACTIVITY: "/audit/my-activity",                                                 // GET
-  ENTITY_LOGS: (entity_type: string, entity_id: string) => `/audit/entity/${entity_type}/${entity_id}`, // GET
-  PROJECT_STATS: (project_id: string) => `/audit/project/${project_id}/stats`,       // GET
-  GLOBAL_STATS: "/audit/global-stats",                                               // GET
-  PROJECT_EXPORT: (project_id: string) => `/audit/project/${project_id}/export`,     // GET
+  LOGS: "/audit/logs",          // GET (query filter)
+  CLEANUP: "/audit/cleanup",    // POST
+  STATS: "/audit/stats",        // GET
 } as const;
+
 
 // =======================
 // Members (project-scoped)

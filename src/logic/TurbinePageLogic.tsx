@@ -3,13 +3,10 @@ import TurbinePage from "../pages/TurbinePage";
 import { turbineService } from "../api/auth/turbineService";
 import type {
   TurbineUI,
-  TurbineItem,
   TurbineCreateRequest,
   TurbineUpdateRequest,
 } from "../api/types/typeturbineService";
-
 import { mapApiToUI } from "../api/types/typeturbineService";
-
 import { useParams, useLocation } from "react-router-dom";
 
 type LocationState = {
@@ -17,7 +14,6 @@ type LocationState = {
   windfarm?: { id: string; name: string };
 };
 
-/** UI form state cho Create */
 type CreateValues = {
   name: string;
   serialNo?: string;
@@ -26,7 +22,6 @@ type CreateValues = {
   description?: string;
 };
 
-/** Map UI → Update payload (chuẩn type UpdateRequest) */
 function mapUIToUpdatePayload(values: Record<string, string>): TurbineUpdateRequest {
   const payload: TurbineUpdateRequest = {};
   if (values.name) payload.name = values.name;
@@ -79,21 +74,22 @@ const TurbinePageLogic: React.FC = () => {
   /** detail state */
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailValues, setDetailValues] = useState<Record<string, string>>({});
-  const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadingUpdate, setLoadingUpdate] = useState(false);
 
   /** delete state */
   const [loadingDeleteId, setLoadingDeleteId] = useState<string | null>(null);
 
-  /** fetch list */
-  useEffect(() => {
+  /** fetch list dùng chung */
+  const fetchList = (opts?: { resetPage?: boolean }) => {
     if (!windfarmId) return;
     const ctrl = new AbortController();
     setLoadingList(true);
+    const newOffset = opts?.resetPage ? 0 : offset;
+
     turbineService
       .listByWindfarm(
         windfarmId,
-        { limit, offset, search: debouncedSearch || undefined },
+        { limit, offset: newOffset, search: debouncedSearch || undefined },
         ctrl.signal
       )
       .then((res) => {
@@ -107,9 +103,16 @@ const TurbinePageLogic: React.FC = () => {
         setTurbines(list);
         setTotal(typeof d?.total === "number" ? d.total : list.length);
         setLimit(typeof d?.limit === "number" && d.limit > 0 ? d.limit : 50);
+        if (opts?.resetPage) setOffset(0);
       })
       .finally(() => setLoadingList(false));
+
     return () => ctrl.abort();
+  };
+
+  useEffect(() => {
+    fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [windfarmId, limit, offset, debouncedSearch]);
 
   /** create */
@@ -139,16 +142,15 @@ const TurbinePageLogic: React.FC = () => {
           alert(res.message || "Create turbine failed");
           return;
         }
-        setOffset(0); // reload first page
         setShowCreateModal(false);
         setCreateValuesState({ name: "" });
+        fetchList({ resetPage: true });
       })
       .finally(() => setLoadingCreate(false));
   };
 
   /** detail */
   const onOpenDetail = (tb: TurbineUI) => {
-    setLoadingDetail(true);
     setDetailValues({
       id: tb.id,
       windfarmId: tb.windfarm_id,
@@ -160,11 +162,9 @@ const TurbinePageLogic: React.FC = () => {
       description: tb.description ?? "",
       createdAt: tb.created_at ?? "",
       updatedAt: tb.updated_at ?? "",
-      createdBy: tb.created_by?.id ?? "",
       createdByName: tb.created_by?.name ?? "",
     });
     setShowDetailModal(true);
-    setLoadingDetail(false);
   };
 
   const onCloseDetail = () => setShowDetailModal(false);
@@ -183,22 +183,7 @@ const TurbinePageLogic: React.FC = () => {
           alert(res.message || "Update turbine failed");
           return;
         }
-        // refetch list
-        const ctrl = new AbortController();
-        setLoadingList(true);
-        turbineService
-          .listByWindfarm(
-            windfarmId,
-            { limit, offset, search: debouncedSearch || undefined },
-            ctrl.signal
-          )
-          .then((r2) => {
-            if (r2.ok) {
-              setTurbines(r2.data.turbines.map(mapApiToUI));
-              setTotal(r2.data.total ?? 0);
-            }
-          })
-          .finally(() => setLoadingList(false));
+        fetchList();
         setShowDetailModal(false);
       })
       .finally(() => setLoadingUpdate(false));
@@ -215,21 +200,7 @@ const TurbinePageLogic: React.FC = () => {
           alert(res.message || "Delete turbine failed");
           return;
         }
-        const ctrl = new AbortController();
-        setLoadingList(true);
-        turbineService
-          .listByWindfarm(
-            windfarmId,
-            { limit, offset, search: debouncedSearch || undefined },
-            ctrl.signal
-          )
-          .then((r2) => {
-            if (r2.ok) {
-              setTurbines(r2.data.turbines.map(mapApiToUI));
-              setTotal(r2.data.total ?? 0);
-            }
-          })
-          .finally(() => setLoadingList(false));
+        fetchList();
       })
       .finally(() => setLoadingDeleteId(null));
   };
@@ -261,7 +232,6 @@ const TurbinePageLogic: React.FC = () => {
       detailValues={detailValues}
       setDetailValue={(k, v) => setDetailValues((s) => ({ ...s, [k]: v }))}
       onDetailSave={onDetailSave}
-      loadingDetail={loadingDetail}
       loadingUpdate={loadingUpdate}
       onDelete={onDelete}
       loadingDeleteId={loadingDeleteId}

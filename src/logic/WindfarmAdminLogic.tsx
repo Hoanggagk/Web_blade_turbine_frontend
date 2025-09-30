@@ -34,10 +34,6 @@ const WindfarmAdminPageLogic: React.FC = () => {
 
   const [loadingDeleteId, setLoadingDeleteId] = useState<string | null>(null);
 
-  // Bulk delete state
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [loadingBulkDelete, setLoadingBulkDelete] = useState(false);
-
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -128,36 +124,6 @@ const WindfarmAdminPageLogic: React.FC = () => {
     else fetchList();
   };
 
-  /** bulk delete */
-  const onBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.length} windfarms?`)) return;
-
-    setLoadingBulkDelete(true);
-    const res = await windfarmService.bulkDelete(selectedIds);
-    if (!mounted.current) return;
-    setLoadingBulkDelete(false);
-
-    if (!res.ok) {
-      if (res.message) alert(res.message);
-      return;
-    }
-    setSelectedIds([]);
-    fetchList();
-  };
-
-  /** toggle row select */
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.length === items.length) setSelectedIds([]);
-    else setSelectedIds(items.map((x) => x.id));
-  };
-
   /** filter with search */
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -190,11 +156,6 @@ const WindfarmAdminPageLogic: React.FC = () => {
       loadingUpdate={loadingUpdate}
       onDelete={onDelete}
       loadingDeleteId={loadingDeleteId}
-      selectedIds={selectedIds}
-      toggleSelect={toggleSelect}
-      toggleSelectAll={toggleSelectAll}
-      onBulkDelete={onBulkDelete}
-      loadingBulkDelete={loadingBulkDelete}
     />
   );
 };

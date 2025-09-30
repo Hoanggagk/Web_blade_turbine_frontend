@@ -1,6 +1,4 @@
-/* Modal.css */
-
-/* overlay giống modal Create */
+/* ============ Overlay ============ */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -11,20 +9,28 @@
   justify-content: center;
 }
 
-/* hộp modal: trắng, viền mảnh, không bo góc, rộng ~400px như Create */
+/* ============ Container ============ */
 .modal-container {
   position: relative;
   background: #fff;
-  width: 400px;
-  max-width: 95vw;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
   padding: 20px;
   border: 1px solid #ccc;
   border-radius: 0;
   box-sizing: border-box;
   font-size: 13px;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* tránh tràn */
 }
 
-/* nút đóng ở góc phải trên, nhỏ gọn */
+/* các phần khác giữ nguyên */
+
+
+/* Close button */
 .modal-close {
   position: absolute;
   top: 8px;
@@ -38,7 +44,7 @@
 }
 .modal-close:hover { color: #2d4373; }
 
-/* header giống Create: đậm, căn giữa */
+/* Header */
 .modal-header {
   font-size: 1.2rem;
   font-weight: bold;
@@ -47,27 +53,28 @@
   color: #000;
 }
 
-/* form dọc, khoảng cách vừa phải */
+/* Form (scroll nếu dài) */
 .modal-form {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-right: 6px;
 }
 
-/* mỗi field gồm label + control xếp dọc */
+/* Field */
 .modal-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-/* label nhỏ, rõ ràng */
 .modal-field > label {
   font-size: 13px;
   color: #000;
 }
 
-/* input/textarea giống modal Create */
 .modal-field input,
 .modal-field textarea {
   width: 100%;
@@ -80,29 +87,39 @@
   box-sizing: border-box;
 }
 
-/* focus viền xanh đậm như hệ thống của bạn */
 .modal-field input:focus,
 .modal-field textarea:focus {
   outline: none;
   border-color: #3B5998;
 }
 
-/* disabled/read-only (editable === false) */
 .modal-field input:disabled,
 .modal-field textarea:disabled {
   background: #e4e4e4;
   color: #000;
-  opacity: 1;            /* tránh nhợt nhạt quá */
+  opacity: 1;
   cursor: not-allowed;
 }
 
-/* textarea cao vừa phải, cho phép kéo dãn dọc */
 .modal-field textarea {
   min-height: 120px;
   resize: vertical;
 }
 
-/* footer khu vực nút – parent inject (btn-… của bạn giữ nguyên) */
+/* JSON viewer block */
+.json-viewer {
+  background: #f5f5f5;
+  padding: 8px;
+  border: 1px solid #ccc;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+}
+
+/* Footer */
 .modal-footer {
   margin-top: 6px;
   display: flex;
@@ -110,10 +127,18 @@
   gap: 1rem;
 }
 
-/* responsive giống Create */
-@media (max-width: 576px) {
+/* Responsive */
+@media (max-width: 1024px) {
+  .modal-container {
+    width: 500px;
+    max-width: 90vw;
+  }
+}
+
+@media (max-width: 768px) {
   .modal-container {
     width: 95vw;
+    max-width: 95vw;
     padding: 16px;
   }
 }

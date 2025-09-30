@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import "../components styles/Modal.css";
 
 export type Field = {
@@ -18,11 +18,11 @@ type ModalFormProps = {
   isOpen: boolean;
   header?: string;
   fields: FieldColumn[];
-  values: Record<string, string>;
+  values: Record<string, string | undefined>;
   onChange: (key: string, value: string) => void;
   onClose: () => void;
   onSave?: () => void;
-  footer?: React.ReactNode; // parent tự thêm nút
+  footer?: React.ReactNode;
 };
 
 const ModalForm = ({
@@ -35,11 +35,43 @@ const ModalForm = ({
   onSave,
   footer,
 }: ModalFormProps) => {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // ESC để đóng
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-container">
+    <div
+      ref={overlayRef}
+      className="modal-overlay"
+      onMouseDown={(e) => {
+        if (e.target === overlayRef.current) {
+          overlayRef.current!.dataset.closable = "true";
+        }
+      }}
+      onMouseUp={(e) => {
+        if (
+          overlayRef.current?.dataset.closable === "true" &&
+          e.target === overlayRef.current
+        ) {
+          onClose();
+        }
+        if (overlayRef.current) overlayRef.current.dataset.closable = "false";
+      }}
+    >
+      <div
+        className="modal-container"
+        onClick={(e) => e.stopPropagation()} // chặn click trong modal
+      >
         <button className="modal-close" onClick={onClose}>
           ✕
         </button>
@@ -54,7 +86,7 @@ const ModalForm = ({
           }}
         >
           {fields.map((field) => {
-            const value = values[field.key] || "";
+            const value = values[field.key] ?? "";
             const handleChange = (v: string) => onChange(field.key, v);
 
             return (
@@ -85,7 +117,6 @@ const ModalForm = ({
             );
           })}
 
-          {/* Footer do parent tự thêm */}
           {footer && <div className="modal-footer">{footer}</div>}
         </form>
       </div>

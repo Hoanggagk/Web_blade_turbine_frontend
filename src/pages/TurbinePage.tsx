@@ -1,13 +1,10 @@
-// src/pages/TurbinePage.tsx
-import React from "react";
+import React, { useState } from "react";
 import Sidebar from "../components/sidebar";
 import Button from "../components/button";
 import GenericTable, { type Column } from "../components/table";
 import ModalForm, { type FieldColumn } from "../components/Modal";
 import "../styles/ProjectManagementPage.css";
 import Breadcrumb from "../components/breadcrumb";
-
-// 👉 dùng type-only import cho model
 import type { TurbineUI } from "../api/types/typeturbineService";
 
 type CreateValues = {
@@ -48,7 +45,6 @@ type Props = {
   detailValues: Record<string, string>;
   setDetailValue: (k: string, v: string) => void;
   onDetailSave: () => void;
-  loadingDetail?: boolean;
   loadingUpdate?: boolean;
 
   onDelete: (tb: TurbineUI) => void;
@@ -57,11 +53,18 @@ type Props = {
   onRowClick?: (tb: TurbineUI) => void;
 };
 
-const truncate = (s?: string | null, n = 120) =>
-  (s ?? "").length > n ? `${(s ?? "").slice(0, n)}…` : (s ?? "");
-
-const formatDateTime = (s?: string) =>
-  s ? new Date(s).toLocaleString("vi-VN") : "";
+const formatDateTime = (s?: string) => {
+  if (!s) return "";
+  const d = new Date(s);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  const DD = pad(d.getDate());
+  const MM = pad(d.getMonth() + 1);
+  const YY = d.getFullYear().toString().slice(-2);
+  return `${hh}:${mm}:${ss} ${DD}/${MM}/${YY}`;
+};
 
 const TurbinePage: React.FC<Props> = ({
   projectId,
@@ -73,7 +76,6 @@ const TurbinePage: React.FC<Props> = ({
   searchTerm,
   setSearchTerm,
   total = 0,
-  limit = 50,
   offset = 0,
   onOffsetChange,
   showCreateModal,
@@ -89,26 +91,18 @@ const TurbinePage: React.FC<Props> = ({
   detailValues,
   setDetailValue,
   onDetailSave,
-  loadingDetail,
   loadingUpdate,
   onDelete,
   loadingDeleteId,
   onRowClick,
 }) => {
+  const [showDescModal, setShowDescModal] = useState(false);
+  const [selectedDesc, setSelectedDesc] = useState("");
+
   const columns: Column<TurbineUI>[] = [
     { key: "index", header: "#", align: "center", render: (_r, i) => i + 1 },
-    {
-      key: "name",
-      header: "Turbine",
-      sortable: true,
-      sortAccessor: (r) => r.name.toLowerCase(),
-    },
-    {
-      key: "serial_no",
-      header: "Serial No.",
-      sortable: true,
-      sortAccessor: (r) => (r.serial_no ?? "").toLowerCase(),
-    },
+    { key: "name", header: "Turbine", sortable: true },
+    { key: "serial_no", header: "Serial No.", sortable: true },
     {
       key: "capacity_mw",
       header: "Capacity (MW)",
@@ -116,22 +110,46 @@ const TurbinePage: React.FC<Props> = ({
       sortable: true,
       sortAccessor: (r) => r.capacity_mw ?? 0,
     },
+    { key: "coordinates", header: "Coordinates" },
     {
-      key: "coordinates",
-      header: "Coordinates",
+      key: "created_at",
+      header: "Created At",
+      render: (r) => formatDateTime(r.created_at),
       sortable: true,
-      sortAccessor: (r) => (r.coordinates ?? "").toLowerCase(),
+      sortAccessor: (r) => r.created_at || "",
     },
     {
-      key: "description",
-      header: "Description",
-      render: (r) => truncate(r.description ?? "", 100),
+      key: "updated_at",
+      header: "Updated At",
+      render: (r) => formatDateTime(r.updated_at),
+      sortable: true,
+      sortAccessor: (r) => r.updated_at || "",
     },
     {
       key: "windfarm_name",
       header: "Windfarm",
       sortable: true,
       sortAccessor: (r) => (r.windfarm_name ?? "").toLowerCase(),
+    },
+    {
+      key: "description",
+      header: "Description",
+      align: "center",
+      render: (tb) =>
+        tb.description ? (
+          <Button
+            variant="detail"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedDesc(tb.description ?? "");
+              setShowDescModal(true);
+            }}
+          >
+            View
+          </Button>
+        ) : (
+          "—"
+        ),
     },
     {
       key: "actions",
@@ -178,7 +196,7 @@ const TurbinePage: React.FC<Props> = ({
 
   const detailFields: FieldColumn[] = [
     { key: "id", label: "ID", type: "text", editable: false },
-    { key: "windfarm_name", label: "Windfarm", type: "text", editable: false },
+    { key: "windfarmName", label: "Windfarm", type: "text", editable: false },
     { key: "name", label: "Name", type: "text", editable: true },
     { key: "serialNo", label: "Serial No.", type: "text", editable: true },
     { key: "capacityMw", label: "Capacity (MW)", type: "number", editable: true },
@@ -199,11 +217,11 @@ const TurbinePage: React.FC<Props> = ({
       render: () => formatDateTime(detailValues.updatedAt),
     },
     {
-      key: "createdBy",
+      key: "createdByName",
       label: "Created By",
       type: "text",
       editable: false,
-      render: () => detailValues.createdByName || detailValues.createdBy,
+      render: () => detailValues.createdByName || "-",
     },
   ];
 
@@ -222,16 +240,10 @@ const TurbinePage: React.FC<Props> = ({
               items={[
                 { label: "Projects", path: "/project-management" },
                 projectName
-                  ? {
-                      label: projectName,
-                      path: projectId ? `/project/${projectId}` : undefined,
-                    }
+                  ? { label: projectName, path: projectId ? `/project/${projectId}` : undefined }
                   : undefined,
                 windfarmName
-                  ? {
-                      label: windfarmName,
-                      path: windfarmId ? `/windfarm/${windfarmId}` : undefined,
-                    }
+                  ? { label: windfarmName, path: windfarmId ? `/windfarm/${windfarmId}` : undefined }
                   : undefined,
                 { label: "Turbines" },
               ].filter(Boolean) as any}
@@ -242,9 +254,7 @@ const TurbinePage: React.FC<Props> = ({
             <input
               type="text"
               className="search-input"
-              placeholder={`Search by name/serial${
-                windfarmName ? ` in ${windfarmName}` : ""
-              }...`}
+              placeholder={`Search by name/serial${windfarmName ? ` in ${windfarmName}` : ""}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -261,7 +271,6 @@ const TurbinePage: React.FC<Props> = ({
               columns={columns}
               loading={!!loadingList}
               emptyText="No turbines"
-              stickyHeader
               page={page}
               pageSize={pageSize}
               total={total}
@@ -272,6 +281,7 @@ const TurbinePage: React.FC<Props> = ({
         </div>
       </main>
 
+      {/* Create Modal */}
       {showCreateModal && (
         <ModalForm
           isOpen={showCreateModal}
@@ -299,6 +309,7 @@ const TurbinePage: React.FC<Props> = ({
         />
       )}
 
+      {/* Detail Modal */}
       {showDetailModal && (
         <ModalForm
           isOpen={showDetailModal}
@@ -316,13 +327,32 @@ const TurbinePage: React.FC<Props> = ({
               <Button
                 variant="submit"
                 onClick={onDetailSave}
-                loading={!!loadingUpdate || !!loadingDetail}
-                disabled={!!loadingDetail || !!loadingUpdate || !canSaveDetail}
+                loading={!!loadingUpdate}
+                disabled={!!loadingUpdate || !canSaveDetail}
               >
                 Save
               </Button>
             </>
           }
+        />
+      )}
+
+      {/* Description Modal */}
+      {showDescModal && (
+        <ModalForm
+          isOpen={showDescModal}
+          header="Description"
+          fields={[
+            {
+              key: "desc",
+              label: "Description",
+              type: "textarea",
+              editable: false,
+            },
+          ]}
+          values={{ desc: selectedDesc }}
+          onChange={() => {}} // readonly
+          onClose={() => setShowDescModal(false)}
         />
       )}
     </div>
