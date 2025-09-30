@@ -48,7 +48,7 @@ const MemberProjectLogic: React.FC<Props> = ({
   // per-row delete
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
-  // 🔹 per-row update
+  // per-row update
   const [updateLoading, setUpdateLoading] = useState<string | null>(null);
 
   // reload trigger
@@ -146,9 +146,9 @@ const MemberProjectLogic: React.FC<Props> = ({
     [members.length, offset, limit, projectId, refresh]
   );
 
-  // 🔹 update role / can_invite
+  // update role
   const handleUpdate = useCallback(
-    async (m: ProjectMember, updates: Partial<Pick<ProjectMember, "role" | "can_invite">>) => {
+    async (m: ProjectMember, updates: Partial<Pick<ProjectMember, "role">>) => {
       setUpdateLoading(m.user_id);
       const res = await memberService.update(projectId, m.user_id, updates);
       setUpdateLoading(null);
@@ -209,8 +209,8 @@ const MemberProjectLogic: React.FC<Props> = ({
       // actions
       onRemove={handleRemove}
       deleteLoading={deleteLoading}
-      onUpdate={handleUpdate}       // 🔹 thêm
-      updateLoading={updateLoading} // 🔹 thêm
+      onUpdate={handleUpdate}
+      updateLoading={updateLoading}
       // loading
       loadingList={loadingList}
     />

@@ -42,21 +42,19 @@ export type GenericTableProps<T> = {
 };
 
 /* =========================
-   Table Manager (fix constructor)
+   Table Manager (đã tối giản)
    ========================= */
 class TableManager<T> {
-  private data: T[];
   private columns: Column<T>[];
   private getRowKey?: (row: T, index: number) => React.Key;
   private getSelectionKey?: (row: T, index: number) => React.Key;
 
   constructor(
-    data: T[],
+    _data: T[], // không cần lưu
     columns: Column<T>[],
     getRowKey?: (row: T, index: number) => React.Key,
     getSelectionKey?: (row: T, index: number) => React.Key
   ) {
-    this.data = data;
     this.columns = columns;
     this.getRowKey = getRowKey;
     this.getSelectionKey = getSelectionKey;
@@ -87,7 +85,7 @@ class TableManager<T> {
   }
 
   getTotalPages(pageSize?: number, total?: number): number {
-    if (!pageSize || !total) return 1;
+    if (!pageSize || total == null) return 1;
     return Math.max(1, Math.ceil(total / pageSize));
   }
 }

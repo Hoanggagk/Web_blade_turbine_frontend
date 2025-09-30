@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import Sidebar from "../components/sidebar";
 import GenericTable from "../components/table";
 import type { Column } from "../components/table";
@@ -64,17 +64,12 @@ const formatDate = (iso?: string) => {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 };
 
-const roleText = (r: ProjectMember["role"]) =>
-  r === "owner" ? "Owner" : r === "editor" ? "Editor" : "Viewer";
-
 const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
   projectTitle,
   onBack,
   canManage = false,
   suggestQuery,
   onSuggestQueryChange,
-  suggestions,
-  suggestLoading,
   inviteLoading,
   onInviteUserId,
   searchTerm,
@@ -90,12 +85,7 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
   updateLoading,
   loadingList,
 }) => {
-  const data = useMemo(
-    () => members.map((m) => ({ ...m, id: `${m.project_id}:${m.user_id}` })),
-    [members]
-  );
-
-  const [activeIndex, setActiveIndex] = useState<number>(-1);
+  const data = members.map((m) => ({ ...m, id: `${m.project_id}:${m.user_id}` }));
 
   const columns: Column<typeof data[number]>[] = [
     {
@@ -203,7 +193,7 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
                   className="invite-input"
                   placeholder="Type email or name..."
                   value={suggestQuery}
-                  onChange={(e) => { onSuggestQueryChange(e.target.value); setActiveIndex(-1); }}
+                  onChange={(e) => onSuggestQueryChange(e.target.value)}
                   disabled={!canManage}
                 />
                 <Button
