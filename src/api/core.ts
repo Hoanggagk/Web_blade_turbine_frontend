@@ -91,7 +91,7 @@ function toErr(error: AxiosError): ApiErr {
 
 // -------------------- axios instance --------------------
 export const apiClient = axios.create({
-  baseURL: "http://127.0.0.1:8000/api/v1", // 👈 chỉnh theo env
+  baseURL: "http://192.168.1.141:8000/api/v1", // 👈 chỉnh theo env
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });

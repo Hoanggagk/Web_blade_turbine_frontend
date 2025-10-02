@@ -70,6 +70,8 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
   canManage = false,
   suggestQuery,
   onSuggestQueryChange,
+  suggestions,
+  suggestLoading,
   inviteLoading,
   onInviteUserId,
   searchTerm,
@@ -206,6 +208,27 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
                   Add
                 </Button>
               </div>
+
+              {/* 🔽 Dropdown gợi ý */}
+              {(suggestLoading || suggestions.length > 0) && (
+                <div className="suggest-dropdown">
+                  {suggestLoading && <div className="suggest-loading">Loading...</div>}
+                  {!suggestLoading && suggestions.length === 0 && (
+                    <div className="suggest-empty">No users found</div>
+                  )}
+                  {!suggestLoading &&
+                    suggestions.map((s) => (
+                      <div
+                        key={s.id}
+                        className="suggest-item"
+                        onClick={() => onInviteUserId(s.id)}
+                      >
+                        <div className="suggest-name">{s.name}</div>
+                        <div className="suggest-email">{s.email}</div>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           </section>
 
