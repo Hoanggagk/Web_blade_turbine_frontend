@@ -4,7 +4,7 @@ import "../components styles/Modal.css";
 export type Field = {
   key: string;
   label: string;
-  type?: "text" | "email" | "number" | "password" | "textarea";
+  type?: "text" | "email" | "number" | "password" | "textarea" | "file";
   placeholder?: string;
   editable?: boolean;
   value?: string;
@@ -102,6 +102,20 @@ const ModalForm = ({
                     placeholder={field.placeholder}
                     disabled={field.editable === false}
                     onChange={(e) => handleChange(e.target.value)}
+                  />
+                ) : field.type === "file" ? (
+                  <input
+                    id={field.key}
+                    type="file"
+                    multiple
+                    disabled={field.editable === false}
+                    onChange={(e) => {
+                      // chỉ lấy tên file để hiển thị, value thực tế quản lý ở ngoài
+                      const files = e.target.files
+                        ? Array.from(e.target.files).map((f) => f.name).join(", ")
+                        : "";
+                      handleChange(files);
+                    }}
                   />
                 ) : (
                   <input

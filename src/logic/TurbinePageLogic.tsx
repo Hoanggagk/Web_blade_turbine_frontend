@@ -7,7 +7,8 @@ import type {
   TurbineUpdateRequest,
 } from "../api/types/typeturbineService";
 import { mapApiToUI } from "../api/types/typeturbineService";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
+
 
 type LocationState = {
   project?: { id: string; name: string };
@@ -34,7 +35,6 @@ function mapUIToUpdatePayload(values: Record<string, string>): TurbineUpdateRequ
   }
   return payload;
 }
-
 /** debounce hook */
 const useDebounced = (value: string, delay = 300) => {
   const [v, setV] = useState(value);
@@ -49,7 +49,7 @@ const TurbinePageLogic: React.FC = () => {
   const params = useParams<{ windfarmId?: string }>();
   const location = useLocation();
   const locState = (location.state || {}) as LocationState;
-
+  const navigate = useNavigate();
   const windfarmId = params.windfarmId || locState.windfarm?.id || "";
   const windfarmName = locState.windfarm?.name || "";
   const projectId = locState.project?.id || "";
@@ -205,39 +205,40 @@ const TurbinePageLogic: React.FC = () => {
       .finally(() => setLoadingDeleteId(null));
   };
 
-  return (
-    <TurbinePage
-      projectId={projectId}
-      projectName={projectName}
-      windfarmId={windfarmId}
-      windfarmName={windfarmName}
-      turbines={turbines}
-      loadingList={loadingList}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      total={total}
-      limit={limit}
-      offset={offset}
-      onOffsetChange={setOffset}
-      showCreateModal={showCreateModal}
-      onOpenCreate={onOpenCreate}
-      onCloseCreate={onCloseCreate}
-      createValues={createValues}
-      setCreateValues={updateCreateValues}
-      onCreateSubmit={onCreateSubmit}
-      loadingCreate={loadingCreate}
-      showDetailModal={showDetailModal}
-      onOpenDetail={onOpenDetail}
-      onCloseDetail={onCloseDetail}
-      detailValues={detailValues}
-      setDetailValue={(k, v) => setDetailValues((s) => ({ ...s, [k]: v }))}
-      onDetailSave={onDetailSave}
-      loadingUpdate={loadingUpdate}
-      onDelete={onDelete}
-      loadingDeleteId={loadingDeleteId}
-      onRowClick={() => {}}
-    />
-  );
+return (
+  <TurbinePage
+    projectId={projectId}
+    projectName={projectName}
+    windfarmId={windfarmId}
+    windfarmName={windfarmName}
+    turbines={turbines}
+    loadingList={loadingList}
+    searchTerm={searchTerm}
+    setSearchTerm={setSearchTerm}
+    total={total}
+    limit={limit}
+    offset={offset}
+    onOffsetChange={setOffset}
+    showCreateModal={showCreateModal}
+    onOpenCreate={onOpenCreate}
+    onCloseCreate={onCloseCreate}
+    createValues={createValues}
+    setCreateValues={updateCreateValues}
+    onCreateSubmit={onCreateSubmit}
+    loadingCreate={loadingCreate}
+    showDetailModal={showDetailModal}
+    onOpenDetail={onOpenDetail}
+    onCloseDetail={onCloseDetail}
+    detailValues={detailValues}
+    setDetailValue={(k, v) => setDetailValues((s) => ({ ...s, [k]: v }))}
+    onDetailSave={onDetailSave}
+    loadingUpdate={loadingUpdate}
+    onDelete={onDelete}
+    loadingDeleteId={loadingDeleteId}
+    onRowClick={(tb) => navigate(`/inspection/${tb.id}`)} // ✅ thêm dòng này
+  />
+);
+
 };
 
 export default TurbinePageLogic;

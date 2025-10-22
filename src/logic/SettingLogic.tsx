@@ -40,7 +40,7 @@ function SettingLogic() {
     setLoadingLogout(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = async () => { // 👈 không nhận event
     if (!current || !newPass || !confirm) {
       setError("Please fill in all fields");
       return;
@@ -57,6 +57,7 @@ function SettingLogic() {
     const res = await authServiceLong.changePassword({
       current_password: current,
       new_password: newPass,
+      confirm_password: confirm,
     });
 
     if (!res.ok) {

@@ -1,0 +1,173 @@
+:root {
+  --font-main: "Roboto", sans-serif;
+  --primary-color: #007bff;
+  --border-color: #d0d7de;
+  --hover-bg: #f6f8fa;
+  --modal-width: 600px;
+  --upload-height: 320px;
+  --radius: 8px;
+}
+
+/* Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Container */
+.modal-container {
+  width: var(--modal-width);
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  position: relative;
+  font-family: var(--font-main);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Close button */
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #555;
+  transition: 0.2s;
+}
+
+.modal-close:hover {
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* Header */
+.modal-header {
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* Body layout */
+.body {
+  display: flex;
+  gap: 20px;
+}
+
+/* Upload box */
+.upload-box {
+  flex: 1;
+  height: var(--upload-height);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  transition: 0.25s;
+  background: #fafbfc;
+  cursor: pointer;
+}
+
+.upload-box:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary-color);
+}
+
+.upload-box.drag-over {
+  background: #eaf3ff;
+  border-color: var(--primary-color);
+  transform: scale(1.01);
+}
+
+.upload-box p {
+  margin: 0;
+  font-size: 16px;
+  color: #444;
+}
+
+/* Nút chọn file */
+.select-btn {
+  margin-top: 16px;
+  padding: 10px 24px;
+  font-size: 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary-color);
+  color: #fff;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.select-btn:hover {
+  background: #0056b3;
+}
+
+/* File name hiển thị */
+.upload-box p.file-info {
+  font-size: 14px;
+  margin-top: 12px;
+  color: #2c3e50;
+  word-break: break-all;
+  max-width: 90%;
+  text-align: center;
+}
+
+/* Right panel */
+.right-panel {
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  background: #fff;
+}
+
+.card-title {
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+/* Footer */
+.modal-footer {
+  margin-top: 28px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.modal-footer button {
+  padding: 10px 20px;
+  font-size: 15px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}

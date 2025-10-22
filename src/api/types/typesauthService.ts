@@ -37,7 +37,9 @@ export type ResetPasswordRequest = {
 export type ChangePasswordRequest = {
   current_password: string;
   new_password: string;
+  confirm_password: string;
 };
+
 
 export type UserResponse = {
   id: string;

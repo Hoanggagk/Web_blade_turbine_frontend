@@ -91,7 +91,7 @@ function toErr(error: AxiosError): ApiErr {
 
 // -------------------- axios instance --------------------
 export const apiClient = axios.create({
-  baseURL: "http://192.168.1.141:8000/api/v1", // 👈 chỉnh theo env
+  baseURL: "http://192.168.1.142:8000/api/v1", // 👈 chỉnh lại nếu cần ENV
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
@@ -149,6 +149,20 @@ export const api = {
   ): Promise<ApiResult<T>> => {
     try {
       const res = await apiClient.delete<T>(url, config);
+      return toOk(res);
+    } catch (e) {
+      return toErr(e as AxiosError);
+    }
+  },
+
+  // ✅ PATCH – thêm mới để hỗ trợ update partial
+  patch: async <T>(
+    url: string,
+    data?: any,
+    config?: Parameters<typeof apiClient.patch>[2]
+  ): Promise<ApiResult<T>> => {
+    try {
+      const res = await apiClient.patch<T>(url, data, config);
       return toOk(res);
     } catch (e) {
       return toErr(e as AxiosError);

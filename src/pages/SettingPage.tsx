@@ -3,7 +3,7 @@ import "../styles/SettingPage.css";
 
 type SettingPageProps = {
   onLogout: () => void;
-  onSave: () => void;
+  onSave: () => void; // 👈 KHÔNG nhận event nữa
   current: string;
   newPass: string;
   confirm: string;
@@ -13,8 +13,8 @@ type SettingPageProps = {
   title?: string;
   error?: string;
   info?: string;
-  loadingSave: boolean;     // 🟢 thêm
-  loadingLogout: boolean;   // 🟢 thêm
+  loadingSave: boolean;
+  loadingLogout: boolean;
 };
 
 function SettingPage({
@@ -29,64 +29,83 @@ function SettingPage({
   info,
   error,
   title = "Change password",
+  loadingSave,
+  loadingLogout,
 }: SettingPageProps) {
   return (
     <div className="SettingPage">
-      {/* SidebarContainer */}
       <aside className="sidebar-content">
         <Sidebar />
       </aside>
 
-      {/* Main content */}
       <main className="main-content">
-        {/* Header bar */}
         <div className="header-bar">
-          <button className="btn-logout" onClick={onLogout}>
-            Log out
+          <button className="btn-logout" onClick={onLogout} disabled={loadingLogout}>
+            {loadingLogout ? "Logging out..." : "Log out"}
           </button>
         </div>
 
-        {/* Change password form */}
-        <div className="change-password-form">
+        <form
+          className="change-password-form"
+          onSubmit={(e) => {            // 👈 chặn submit mặc định, tránh reload
+            e.preventDefault();
+            onSave();
+          }}
+        >
           <h2>{title}</h2>
 
           <div className="input-group">
-            <label className="title-group"><span style={{ color: "red" }}>*</span>  Current password</label>
+            <label className="title-group">
+              <span style={{ color: "red" }}>*</span> Current password
+            </label>
             <input
               className="input-field"
               type="password"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
+              autoComplete="current-password"
+              required
+              minLength={6}
             />
           </div>
 
           <div className="input-group">
-            <label className="title-group"><span style={{ color: "red" }}>*</span>  New password</label>
+            <label className="title-group">
+              <span style={{ color: "red" }}>*</span> New password
+            </label>
             <input
               className="input-field"
               type="password"
               value={newPass}
               onChange={(e) => setNewPass(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={6}
             />
           </div>
 
           <div className="input-group">
-            <label className="title-group"><span style={{ color: "red" }}>*</span>  Confirm password</label>
+            <label className="title-group">
+              <span style={{ color: "red" }}>*</span> Confirm password
+            </label>
             <input
               className="input-field"
               type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={6}
             />
           </div>
 
-          {error && <p>{error}</p>}
-          {info && <p>{info}</p>}
+          {error && <p style={{ color: "red", marginTop: 8 }}>{error}</p>}
+          {info && <p style={{ color: "green", marginTop: 8 }}>{info}</p>}
 
-          <button className="save-btn" onClick={onSave}>
-            Save
+          <button className="save-btn" type="submit" disabled={loadingSave}>
+            {loadingSave ? "Saving..." : "Save"}
           </button>
-        </div>
+        </form>
       </main>
     </div>
   );

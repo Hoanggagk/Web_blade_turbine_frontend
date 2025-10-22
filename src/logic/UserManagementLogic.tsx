@@ -103,7 +103,7 @@ const UserManagementLogic: React.FC = () => {
       deleteLoading={deleteLoading}
       onApproveClick={handleApproveClick}
       onDeleteClick={handleDelete}
-      loadingList={loadingList} // ✅ truyền xuống bảng
+      loadingList={loadingList}
     />
   );
 };

@@ -12,7 +12,7 @@ import "../styles/ImageListPage.css";
 
 const PAGE_SIZE = 24;
 const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://192.168.1.24:8000/api/v1";
+  import.meta.env.VITE_API_BASE || "http://192.168.1.149:8000/api/v1";
 const CACHE_BUST = () => `v=${Date.now()}`;
 const ANALYZE_CONCURRENCY = 4;
 const RESULTS_POLL_INTERVAL = 7000;
@@ -89,14 +89,6 @@ type DrawnBox = {
   label: string;
 };
 
-type EditableManualField =
-  | "x"
-  | "y"
-  | "width"
-  | "height"
-  | "confidence"
-  | "type";
-
 /**
  * Normalises and returns a colour per detected type.
  */
@@ -137,13 +129,6 @@ const resolveGradeTone = (color?: string, type?: string) => {
     return normalizedType.replace("lv_", "lv-");
   }
   return "default";
-};
-
-const clamp01 = (value: number) => {
-  if (!Number.isFinite(value)) return 0;
-  if (value < 0) return 0;
-  if (value > 1) return 1;
-  return value;
 };
 
 /**
@@ -255,16 +240,6 @@ const InspectionPage: React.FC = () => {
   const [imageLoading, setImageLoading] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [analysisBannerVisible, setAnalysisBannerVisible] = useState(false);
-  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [isDeletingImages, setIsDeletingImages] = useState(false);
-  const [manualEditBoxes, setManualEditBoxes] = useState<BBox[]>([]);
-  const [manualEditDirty, setManualEditDirty] = useState(false);
-  const [manualEditSaving, setManualEditSaving] = useState(false);
-  const [manualEditFeedback, setManualEditFeedback] = useState<
-    { type: "success" | "error"; message: string } | null
-  >(null);
 
   // ----- Refs -----------------------------------------------------------------------
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -330,38 +305,10 @@ const InspectionPage: React.FC = () => {
     () => filteredImages.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [filteredImages, page],
   );
-  const selectedCount = selectedImageIds.size;
-  const allPageSelected = useMemo(
-    () =>
-      pageImages.length > 0 &&
-      pageImages.every((img) => selectedImageIds.has(img.id)),
-    [pageImages, selectedImageIds],
-  );
 
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, bladeFilter, listGradeFilter]);
-
-  useEffect(() => {
-    setPage((prev) => (prev > totalPages ? totalPages : prev));
-  }, [totalPages]);
-
-  useEffect(() => {
-    setSelectedImageIds((prev) => {
-      if (!detail) {
-        return prev.size === 0 ? prev : new Set<string>();
-      }
-      const validIds = new Set(detail.images.map((img) => img.id));
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (validIds.has(id)) next.add(id);
-      });
-      if (next.size === prev.size) {
-        return prev;
-      }
-      return next;
-    });
-  }, [detail]);
 
   const analysisStatusMessage = useMemo(() => {
     if (isAnalyzingAll) {
@@ -395,216 +342,6 @@ const InspectionPage: React.FC = () => {
       : "default";
 
   // ----- Helper Callbacks -----------------------------------------------------------
-  const toggleImageSelection = useCallback((imageId: string) => {
-    setSelectedImageIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(imageId)) {
-        next.delete(imageId);
-      } else {
-        next.add(imageId);
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleSelectPage = useCallback(() => {
-    setSelectedImageIds((prev) => {
-      const next = new Set(prev);
-      const pageIds = pageImages.map((img) => img.id);
-      const shouldSelectAll = pageIds.some((id) => !next.has(id));
-      if (shouldSelectAll) {
-        pageIds.forEach((id) => next.add(id));
-      } else {
-        pageIds.forEach((id) => next.delete(id));
-      }
-      return next;
-    });
-  }, [pageImages]);
-
-  const clearSelection = useCallback(() => {
-    setSelectedImageIds(() => new Set());
-  }, []);
-
-  const updateManualBoxField = useCallback(
-    (index: number, key: EditableManualField, rawValue: string) => {
-      setManualEditBoxes((prev) =>
-        prev.map((box, idx) => {
-          if (idx !== index) return box;
-          if (key === "type") {
-            const sanitized = rawValue.trim().toUpperCase();
-            return { ...box, type: sanitized };
-          }
-          const numericValue = clamp01(Number(rawValue));
-          return {
-            ...box,
-            [key]: Number.isNaN(numericValue) ? 0 : numericValue,
-          };
-        }),
-      );
-      setManualEditDirty(true);
-      setManualEditFeedback(null);
-    },
-    [],
-  );
-
-  const addManualBox = useCallback(() => {
-    setManualEditBoxes((prev) => [
-      ...prev,
-      {
-        x: 0.5,
-        y: 0.5,
-        width: 0.25,
-        height: 0.25,
-        type: "LV_1",
-        confidence: 0.5,
-      },
-    ]);
-    setManualEditDirty(true);
-    setManualEditFeedback(null);
-  }, []);
-
-  const removeManualBox = useCallback((index: number) => {
-    setManualEditBoxes((prev) => prev.filter((_, idx) => idx !== index));
-    setManualEditDirty(true);
-    setManualEditFeedback(null);
-  }, []);
-
-  const resetManualBoxes = useCallback(() => {
-    if (!bboxData) {
-      setManualEditBoxes([]);
-    } else {
-      setManualEditBoxes(bboxData.map((box) => ({ ...box })));
-    }
-    setManualEditDirty(false);
-    setManualEditFeedback(null);
-  }, [bboxData]);
-
-  const submitManualOverride = useCallback(async () => {
-    if (modalIndex === null) return;
-    const targetImage = filteredImages[modalIndex];
-    if (!targetImage || !inspectionId) return;
-    const sanitizedBoxes = manualEditBoxes.map((box) => ({
-      x: clamp01(box.x ?? 0),
-      y: clamp01(box.y ?? 0),
-      width: clamp01(box.width ?? 0),
-      height: clamp01(box.height ?? 0),
-      type: (box.type || "").trim().toUpperCase() || "LV_1",
-      confidence: clamp01(box.confidence ?? 0),
-    }));
-
-    setManualEditSaving(true);
-    setManualEditFeedback(null);
-    const payload = {
-      ai_bounding_boxes: sanitizedBoxes,
-      is_manual_override: true,
-    };
-    const assessmentSnapshot = assessmentInfo;
-    try {
-      const response = await fetch(
-        `${API_BASE}/inspections/images/${targetImage.id}/assessment`,
-        {
-          method: "PATCH",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to update assessment");
-      }
-
-      let updatedAssessment: Assessment | null = null;
-      try {
-        const contentLength = response.headers.get("content-length");
-        if (contentLength === null || Number(contentLength) > 0) {
-          updatedAssessment = await response.json();
-        }
-      } catch {
-        updatedAssessment = null;
-      }
-
-      if (updatedAssessment) {
-        setAssessmentInfo(updatedAssessment);
-        setBboxData(updatedAssessment.ai_bounding_boxes ?? []);
-      } else {
-        setAssessmentInfo((prev) =>
-          prev
-            ? { ...prev, ai_bounding_boxes: sanitizedBoxes }
-            : {
-                ai_bounding_boxes: sanitizedBoxes,
-                ai_confidence: assessmentSnapshot?.ai_confidence ?? 0,
-                ai_damage_types: assessmentSnapshot?.ai_damage_types ?? [],
-                damage_grade: assessmentSnapshot?.damage_grade,
-                grade_label: assessmentSnapshot?.grade_label,
-                grade_color: assessmentSnapshot?.grade_color,
-              },
-        );
-        setBboxData(sanitizedBoxes);
-      }
-
-      setDetail((prev) => {
-        if (!prev) return prev;
-        const updatedImages = prev.images.map((img) => {
-          if (img.id !== targetImage.id) return img;
-          const existingAssessments = img.assessments ?? [];
-          if (existingAssessments.length === 0) {
-            return {
-              ...img,
-              assessments: [
-                {
-                  ai_bounding_boxes: sanitizedBoxes,
-                  ai_confidence: assessmentSnapshot?.ai_confidence ?? 0,
-                  ai_damage_types: assessmentSnapshot?.ai_damage_types ?? [],
-                  damage_grade: assessmentSnapshot?.damage_grade,
-                  grade_label: assessmentSnapshot?.grade_label,
-                  grade_color: assessmentSnapshot?.grade_color,
-                },
-              ],
-            };
-          }
-          const nextAssessments = existingAssessments.map((assessment, idx) =>
-            idx === 0
-              ? { ...assessment, ai_bounding_boxes: sanitizedBoxes }
-              : assessment,
-          );
-          return { ...img, assessments: nextAssessments };
-        });
-        return { ...prev, images: updatedImages };
-      });
-
-      setManualEditBoxes(sanitizedBoxes.map((box) => ({ ...box })));
-      setManualEditDirty(false);
-      setManualEditFeedback({
-        type: "success",
-        message: "Manual override saved.",
-      });
-      setSelectedBox(null);
-      setHoveredBox(null);
-      fetchResultsOnce(inspectionId).catch((error) => console.error(error));
-    } catch (error) {
-      console.error(error);
-      setManualEditFeedback({
-        type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to save manual override",
-      });
-    } finally {
-      setManualEditSaving(false);
-    }
-  }, [
-    modalIndex,
-    filteredImages,
-    inspectionId,
-    manualEditBoxes,
-    assessmentInfo,
-    fetchResultsOnce,
-  ]);
-
   const memoizedBuildUrl = useCallback((path: string) => {
     if (/^https?:\/\//.test(path)) return path;
     const base = API_BASE.replace(/\/api\/v1$/, "");
@@ -933,10 +670,6 @@ const InspectionPage: React.FC = () => {
       setLoadingBbox(true);
       setZoom(1);
       setImgMetrics({ renderedWidth: 0, renderedHeight: 0, offsetX: 0, offsetY: 0 });
-      setManualEditBoxes([]);
-      setManualEditDirty(false);
-      setManualEditFeedback(null);
-      setManualEditSaving(false);
 
       try {
         const bump = imageVersionBump[img.id] || 0;
@@ -1004,87 +737,11 @@ const InspectionPage: React.FC = () => {
     setZoom(1);
     setImgMetrics({ renderedWidth: 0, renderedHeight: 0, offsetX: 0, offsetY: 0 });
     setImageLoading(false);
-    setManualEditBoxes([]);
-    setManualEditDirty(false);
-    setManualEditFeedback(null);
-    setManualEditSaving(false);
     window.scrollTo({
       top: scrollYBeforeModal.current,
       behavior: "instant" as ScrollBehavior,
     });
   }, [imageBlobUrl]);
-
-  const deleteSelectedImages = useCallback(async () => {
-    if (!inspectionId || selectedImageIds.size === 0) return;
-    const imageIds = Array.from(selectedImageIds);
-    const idSet = new Set(imageIds);
-    setIsDeletingImages(true);
-    try {
-      const response = await fetch(
-        `${API_BASE}/inspections/${inspectionId}/images`,
-        {
-          method: "DELETE",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ image_ids: imageIds }),
-        },
-      );
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to delete images");
-      }
-      setDetail((prev) => {
-        if (!prev) return prev;
-        const updatedImages = prev.images.filter((img) => !idSet.has(img.id));
-        const processedImages = Math.min(
-          prev.inspection.processed_images,
-          updatedImages.length,
-        );
-        return {
-          inspection: {
-            ...prev.inspection,
-            total_images: updatedImages.length,
-            processed_images: processedImages,
-          },
-          images: updatedImages,
-        };
-      });
-      setPerImageAnalyzing((prev) => {
-        const next = { ...prev };
-        imageIds.forEach((id) => {
-          if (next[id]) delete next[id];
-        });
-        return next;
-      });
-      setImageVersionBump((prev) => {
-        const next = { ...prev };
-        imageIds.forEach((id) => {
-          if (next[id] != null) delete next[id];
-        });
-        return next;
-      });
-      if (modalIndex !== null) {
-        const current = filteredImages[modalIndex];
-        if (!current || idSet.has(current.id)) {
-          closeModal();
-        }
-      }
-      clearSelection();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsDeletingImages(false);
-    }
-  }, [
-    inspectionId,
-    selectedImageIds,
-    filteredImages,
-    modalIndex,
-    closeModal,
-    clearSelection,
-  ]);
 
   const handleCanvasMouseMove = useCallback(
     (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1264,17 +921,6 @@ const InspectionPage: React.FC = () => {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (!modalOpen) return;
-    if (!bboxData || bboxData.length === 0) {
-      setManualEditBoxes([]);
-      setManualEditDirty(false);
-      return;
-    }
-    setManualEditBoxes(bboxData.map((box) => ({ ...box })));
-    setManualEditDirty(false);
-  }, [modalOpen, bboxData]);
 
   useEffect(() => {
     if (!showBBox || !bboxData || bboxData.length === 0) {
@@ -1462,35 +1108,6 @@ const InspectionPage: React.FC = () => {
             >
               Export JSON
             </Button>
-
-            <Button
-              variant="delete"
-              onClick={deleteSelectedImages}
-              loading={isDeletingImages}
-              disabled={
-                selectedCount === 0 || isDeletingImages || !inspectionId
-              }
-            >
-              Delete Selected
-              {selectedCount > 0 ? ` (${selectedCount})` : ""}
-            </Button>
-
-            <div className="toolbar-selection">
-              <label className="toolbar-checkbox">
-                <input
-                  type="checkbox"
-                  className="toolbar-checkbox__input"
-                  checked={allPageSelected}
-                  onChange={toggleSelectPage}
-                />
-                <span>Select page</span>
-              </label>
-              {selectedCount > 0 && (
-                <span className="toolbar-selection__count">
-                  {selectedCount} selected
-                </span>
-              )}
-            </div>
           </div>
 
           <div className="filter-bar">
@@ -1541,12 +1158,10 @@ const InspectionPage: React.FC = () => {
                   const bump = imageVersionBump[img.id] || 0;
                   const analyzing = !!perImageAnalyzing[img.id];
                   const severe = hasSevereDamage(img);
-                  const isSelected = selectedImageIds.has(img.id);
                   const cardClasses = [
                     "image-card",
                     analyzing ? "image-card--analyzing" : "",
                     severe ? "image-card--critical" : "",
-                    isSelected ? "image-card--selected" : "",
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -1557,15 +1172,6 @@ const InspectionPage: React.FC = () => {
                       className={cardClasses}
                       title={`${img.file_name} | ${img.blade}/${img.surface}`}
                     >
-                      <div className="image-card__selector">
-                        <input
-                          type="checkbox"
-                          className="image-card__checkbox"
-                          checked={isSelected}
-                          aria-label={`Select ${img.file_name}`}
-                          onChange={() => toggleImageSelection(img.id)}
-                        />
-                      </div>
                       <div
                         className="image-thumb"
                         onClick={() => openModal(img.id)}
@@ -1869,4 +1475,4 @@ export default InspectionPage;
 // - Persist zoom and filter preferences per user session.
 // - Add keyboard navigation within the modal (arrow keys for previous/next).
 // - Surface API errors to the user via a toast system.
-// - Add aggregated statistics (e.g., per blade severity counts) to the header.
+// - Add aggregated statistics (e.g., per blade severity counts) to the header.  đây r mà

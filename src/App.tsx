@@ -22,6 +22,8 @@ import WindfarmLogic from "./logic/WinfarmLogic"; // ✅ giữ nguyên
 import WindfarmAdminLogic from "./logic/WindfarmAdminLogic"; // ✅ giữ nguyên 
 import TurbinePageLogic from "./logic/TurbinePageLogic";
 import AuditLogsLogic from "./logic/AuditLogic"; // ✅ thêm mới
+import UploadPage from "./pages/UploadPage";
+import InspectionPage from "./pages/InspectionPage";
 // ===== Guards =====
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
@@ -73,7 +75,7 @@ export default function App() {
           <Route path="/forgot-password" element={<PublicRoute><ForgotMailPasswordLogic /></PublicRoute>} />
           <Route path="/change-password" element={<PublicRoute><ForgotChangePasswordLogic /></PublicRoute>} />
           <Route path="/otp-forgot" element={<PublicRoute><OtpChangeLogic /></PublicRoute>} />
-
+          <Route path="/upload" element={<PublicRoute><UploadPage /></PublicRoute>} />
           {/* Protected */}
           <Route path="/project" element={<ProtectedRoute><ProjectLogic /></ProtectedRoute>} />
           <Route path="/project-management" element={<ProtectedRoute><ProjectManagementLogic /></ProtectedRoute>} />
@@ -85,6 +87,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/inspection/:turbineId" element={<ProtectedRoute><InspectionPage /></ProtectedRoute>} />
           {/* ✅ Windfarms trong project */}
           <Route
             path="/project/:projectId/windfarms"
