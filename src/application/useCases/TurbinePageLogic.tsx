@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import TurbinePage from "../../presentation/pages/TurbinePage";
 import { turbineService } from "../../infrastructure/http/auth/turbineService";
 import type {
@@ -79,7 +79,7 @@ const TurbinePageLogic: React.FC = () => {
   /** delete state */
   const [loadingDeleteId, setLoadingDeleteId] = useState<string | null>(null);
 
-  /** fetch list dùng chung */
+  /** fetch list dÃ¹ng chung */
   const fetchList = (opts?: { resetPage?: boolean }) => {
     if (!windfarmId) return;
     const ctrl = new AbortController();
@@ -235,7 +235,7 @@ return (
     loadingUpdate={loadingUpdate}
     onDelete={onDelete}
     loadingDeleteId={loadingDeleteId}
-    onRowClick={(tb) => navigate(`/inspection/${tb.id}`)} // ✅ thêm dòng này
+    onRowClick={(tb) => navigate(`/turbine/${tb.id}`)} // âœ… thÃªm dÃ²ng nÃ y
   />
 );
 

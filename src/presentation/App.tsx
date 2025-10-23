@@ -23,7 +23,8 @@ import WindfarmAdminLogic from "../application/useCases/WindfarmAdminLogic";
 import TurbinePageLogic from "../application/useCases/TurbinePageLogic";
 import AuditLogsLogic from "../application/useCases/AuditLogic";
 import UploadPage from "./pages/UploadPage";
-import InspectionPage from "./pages/InspectionPage";
+import InspectionListPage from "./pages/InspectionListPage";
+import InspectionDetailPage from "./pages/InspectionDetailPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
@@ -83,7 +84,22 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/inspection/:turbineId" element={<ProtectedRoute><InspectionPage /></ProtectedRoute>} />
+      <Route
+        path="/turbine/:turbineId"
+        element={
+          <ProtectedRoute>
+            <InspectionListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/turbine/:turbineId/inspection/:inspectionId"
+        element={
+          <ProtectedRoute>
+            <InspectionDetailPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/project/:projectId/windfarms"
         element={

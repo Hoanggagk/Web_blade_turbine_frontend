@@ -203,15 +203,14 @@ function useDebounced<T>(value: T, delay = 300) {
 
 // ====== Component ===================================================================
 
-const InspectionPage: React.FC = () => {
-  const { turbineId } = useParams<{ turbineId: string }>();
+const InspectionDetailPage: React.FC = () => {
+  const { turbineId, inspectionId } =
+    useParams<{ turbineId: string; inspectionId: string }>();
 
   // ----- State ----------------------------------------------------------------------
-  const [inspectionId, setInspectionId] = useState<string | null>(null);
   const [detail, setDetail] = useState<InspectionDetail | null>(null);
 
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [isAnalyzingAll, setIsAnalyzingAll] = useState(false);
   const [overallProgress, setOverallProgress] = useState<number>(0);
   const [perImageAnalyzing, setPerImageAnalyzing] = useState<
@@ -456,70 +455,7 @@ const InspectionPage: React.FC = () => {
     [],
   );
 
-  const fetchLatestInspection = useCallback(async () => {
-    if (!turbineId) return;
-    try {
-      const res = await fetch(
-        `${API_BASE}/inspections/turbine/${turbineId}`,
-        { credentials: "include" },
-      );
-      const data = await res.json();
-      if (res.ok && Array.isArray(data) && data.length > 0) {
-        const latestId = data[0].id as string;
-        setInspectionId(latestId);
-        await fetchInspectionDetail(latestId);
-        await fetchResultsOnce(latestId);
-      } else {
-        setDetail(null);
-        setInspectionId(null);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [turbineId, fetchInspectionDetail, fetchResultsOnce]);
-
   // ----- Upload & Analysis ----------------------------------------------------------
-
-  const uploadZip = useCallback(
-    async (file: File) => {
-      if (!turbineId) return alert("Missing turbine ID");
-      if (!file) return alert("No file selected");
-
-      setUploading(true);
-      try {
-        const form = new FormData();
-        form.append("file", file);
-        const res = await fetch(
-          `${API_BASE}/inspections/turbine/${turbineId}/upload`,
-          {
-            method: "POST",
-            body: form,
-            credentials: "include",
-          },
-        );
-        const data = await res.json();
-
-        if (!res.ok) {
-          alert(data?.detail?.[0]?.msg || data?.message || "Upload failed");
-          return;
-        }
-        if (!data?.inspection_id) {
-          alert("No inspection_id returned by server");
-          return;
-        }
-
-        setInspectionId(data.inspection_id);
-        await fetchInspectionDetail(data.inspection_id);
-        await fetchResultsOnce(data.inspection_id);
-      } catch (err) {
-        console.error(err);
-        alert("Upload error");
-      } finally {
-        setUploading(false);
-      }
-    },
-    [fetchInspectionDetail, fetchResultsOnce, turbineId],
-  );
 
   const analyzeOneImage = useCallback(
     async (imageId: string) => {
@@ -848,8 +784,14 @@ const InspectionPage: React.FC = () => {
   // ----- Effects --------------------------------------------------------------------
 
   useEffect(() => {
-    fetchLatestInspection();
-  }, [fetchLatestInspection]);
+    if (!inspectionId) {
+      setDetail(null);
+      return;
+    }
+    setDetail(null);
+    fetchInspectionDetail(inspectionId);
+    fetchResultsOnce(inspectionId);
+  }, [inspectionId, fetchInspectionDetail, fetchResultsOnce]);
 
   useEffect(() => {
     if (!detail || totalImages === 0 || !inspectionId) return;
@@ -1077,19 +1019,6 @@ const InspectionPage: React.FC = () => {
           )}
 
           <div className="toolbar toolbar--actions">
-            <label className="upload-btn">
-              <input
-                type="file"
-                accept=".zip"
-                onChange={(event) =>
-                  event.target.files && uploadZip(event.target.files[0])
-                }
-                className="upload-input"
-                disabled={uploading}
-              />
-              {uploading ? "Uploading..." : "Upload ZIP"}
-            </label>
-
             <Button
               variant="submit"
               onClick={analyzeAllImages}
@@ -1469,7 +1398,7 @@ const InspectionPage: React.FC = () => {
   );
 };
 
-export default InspectionPage;
+export default InspectionDetailPage;
 
 // TODO:
 // - Persist zoom and filter preferences per user session.
