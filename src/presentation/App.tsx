@@ -14,7 +14,6 @@ import OtpChangeLogic from "../application/useCases/OtpChangeLogic";
 // Protected flows
 import ProjectLogic from "../application/useCases/ProjectLogic";
 import SettingLogic from "../application/useCases/SettingLogic";
-import SessionsListLogic from "../application/useCases/SessionsListLoic";
 import UserManagementLogic from "../application/useCases/UserManagementLogic";
 import ProjectManagementLogic from "../application/useCases/ProjectManagementLogic";
 import MemberProjectLogic from "../application/useCases/MemberProjectLogic";
@@ -22,9 +21,9 @@ import WindfarmLogic from "../application/useCases/WinfarmLogic";
 import WindfarmAdminLogic from "../application/useCases/WindfarmAdminLogic";
 import TurbinePageLogic from "../application/useCases/TurbinePageLogic";
 import AuditLogsLogic from "../application/useCases/AuditLogic";
-import UploadPage from "./pages/UploadPage";
 import InspectionListPage from "./pages/InspectionListPage";
 import InspectionDetailPage from "./pages/InspectionDetailPage";
+import UploadPage from "./pages/UploadPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
@@ -71,7 +70,6 @@ export default function App() {
       <Route path="/forgot-password" element={<PublicRoute><ForgotMailPasswordLogic /></PublicRoute>} />
       <Route path="/change-password" element={<PublicRoute><ForgotChangePasswordLogic /></PublicRoute>} />
       <Route path="/otp-forgot" element={<PublicRoute><OtpChangeLogic /></PublicRoute>} />
-      <Route path="/upload" element={<PublicRoute><UploadPage /></PublicRoute>} />
 
       {/* Protected */}
       <Route path="/project" element={<ProtectedRoute><ProjectLogic /></ProtectedRoute>} />
@@ -116,10 +114,17 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/upload"
+        element={
+          <ProtectedRoute>
+            <UploadPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/windfarm-management" element={<ProtectedRoute><WindfarmAdminLogic /></ProtectedRoute>} />
       <Route path="/audit-logs" element={<ProtectedRoute><AuditLogsLogic /></ProtectedRoute>} />
       <Route path="/setting" element={<ProtectedRoute><SettingLogic /></ProtectedRoute>} />
-      <Route path="/sessions" element={<ProtectedRoute><SessionsListLogic /></ProtectedRoute>} />
       <Route path="/user" element={<ProtectedRoute><UserManagementLogic /></ProtectedRoute>} />
 
       {/* Wildcard */}

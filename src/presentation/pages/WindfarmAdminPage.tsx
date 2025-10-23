@@ -5,7 +5,6 @@ import GenericTable, { type Column } from "../components/table";
 import ModalForm, { type FieldColumn } from "../components/Modal";
 import Breadcrumb from "../components/breadcrumb";
 import "../styles/ProjectManagementPage.css";
-import "../styles/WindfarmAdminPage.css";
 
 import type { WindfarmUI } from "../../domain/winfarms/models";
 
@@ -14,7 +13,7 @@ type Props = {
   loadingList?: boolean;
 
   searchTerm: string;
-  setSearchTerm: (s: string) => void;
+  setSearchTerm: (value: string) => void;
 
   total?: number;
   limit?: number;
@@ -25,7 +24,7 @@ type Props = {
   onOpenDetail: (wf: WindfarmUI) => void;
   onCloseDetail: () => void;
   detailValues: Record<string, string>;
-  setDetailValue: (k: string, v: string) => void;
+  setDetailValue: (key: string, value: string) => void;
   onDetailSave: () => void;
   loadingUpdate?: boolean;
 
@@ -35,8 +34,9 @@ type Props = {
 
 const formatDate = (iso?: string | null) => {
   if (!iso) return "-";
-  const d = new Date(iso);
-  return d.toLocaleString("vi-VN");
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("vi-VN");
 };
 
 const WindfarmAdminPage: React.FC<Props> = ({
@@ -48,7 +48,6 @@ const WindfarmAdminPage: React.FC<Props> = ({
   limit = 50,
   offset = 0,
   onOffsetChange,
-
   showDetailModal,
   onOpenDetail,
   onCloseDetail,
@@ -56,7 +55,6 @@ const WindfarmAdminPage: React.FC<Props> = ({
   setDetailValue,
   onDetailSave,
   loadingUpdate,
-
   onDelete,
   loadingDeleteId,
 }) => {
@@ -68,17 +66,46 @@ const WindfarmAdminPage: React.FC<Props> = ({
       key: "index",
       header: "#",
       align: "center",
-      render: (_r, i) => (offset || 0) + i + 1,
+      render: (_row, index) => (offset || 0) + index + 1,
     },
-    { key: "id", header: "ID", render: (r) => <code>{r.id}</code> },
-    { key: "name", header: "Windfarm", render: (r) => r.name },
-    { key: "project_name", header: "Project", render: (r) => r.project_name || "-" },
-    { key: "own_company", header: "Company", render: (r) => r.own_company || "-" },
-    { key: "location", header: "Location", render: (r) => r.location || "-" },
-    { key: "turbine_count", header: "Turbines", align: "right", render: (r) => r.turbine_count ?? 0 },
-    { key: "created_by", header: "Created By", render: (r) => r.created_by?.name ?? "-" },
-    { key: "created_at", header: "Created", render: (r) => formatDate(r.created_at) },
-    { key: "updated_at", header: "Updated", render: (r) => formatDate(r.updated_at) },
+    { key: "id", header: "ID", render: (row) => <code>{row.id}</code> },
+    { key: "name", header: "Windfarm", render: (row) => row.name },
+    {
+      key: "project_name",
+      header: "Project",
+      render: (row) => row.project_name || "-",
+    },
+    {
+      key: "own_company",
+      header: "Company",
+      render: (row) => row.own_company || "-",
+    },
+    {
+      key: "location",
+      header: "Location",
+      render: (row) => row.location || "-",
+    },
+    {
+      key: "turbine_count",
+      header: "Turbines",
+      align: "right",
+      render: (row) => row.turbine_count ?? 0,
+    },
+    {
+      key: "created_by",
+      header: "Created By",
+      render: (row) => row.created_by?.name ?? "-",
+    },
+    {
+      key: "created_at",
+      header: "Created",
+      render: (row) => formatDate(row.created_at),
+    },
+    {
+      key: "updated_at",
+      header: "Updated",
+      render: (row) => formatDate(row.updated_at),
+    },
     {
       key: "description",
       header: "Description",
@@ -87,8 +114,8 @@ const WindfarmAdminPage: React.FC<Props> = ({
         wf.description ? (
           <Button
             variant="detail"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               setSelectedDesc(wf.description ?? "");
               setShowDescModal(true);
             }}
@@ -96,7 +123,7 @@ const WindfarmAdminPage: React.FC<Props> = ({
             View
           </Button>
         ) : (
-          "—"
+          "-"
         ),
     },
     {
@@ -107,8 +134,8 @@ const WindfarmAdminPage: React.FC<Props> = ({
           <Button
             variant="detail"
             style={{ marginRight: 8 }}
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               onOpenDetail(wf);
             }}
           >
@@ -116,8 +143,8 @@ const WindfarmAdminPage: React.FC<Props> = ({
           </Button>
           <Button
             variant="delete"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               onDelete(wf);
             }}
             loading={loadingDeleteId === wf.id}
@@ -131,7 +158,8 @@ const WindfarmAdminPage: React.FC<Props> = ({
 
   const pageSize = limit || 50;
   const page = Math.floor((offset || 0) / pageSize) + 1;
-  const handlePageChange = (p: number) => onOffsetChange?.((p - 1) * pageSize);
+  const handlePageChange = (pageNumber: number) =>
+    onOffsetChange?.((pageNumber - 1) * pageSize);
 
   const detailFields: FieldColumn[] = [
     { key: "id", label: "ID", editable: false },
@@ -156,15 +184,17 @@ const WindfarmAdminPage: React.FC<Props> = ({
           <div className="page-title">
             <Breadcrumb items={[{ label: "Admin" }, { label: "Windfarms" }]} />
           </div>
+
           <div className="toolbar">
             <input
               type="text"
               className="search-input"
-              placeholder="Search by name / company / location / project..."
+              placeholder="Search by name, company, location, or project..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
             />
           </div>
+
           <div className="table-section">
             <GenericTable<WindfarmUI>
               data={windfarms}
@@ -181,14 +211,13 @@ const WindfarmAdminPage: React.FC<Props> = ({
         </div>
       </main>
 
-      {/* Detail Modal */}
       {showDetailModal && (
         <ModalForm
           isOpen={showDetailModal}
           header="Windfarm Detail"
           fields={detailFields}
           values={detailValues}
-          onChange={(k, v) => setDetailValue(k, v)}
+          onChange={(key, value) => setDetailValue(key, value)}
           onClose={onCloseDetail}
           onSave={onDetailSave}
           footer={
@@ -208,12 +237,18 @@ const WindfarmAdminPage: React.FC<Props> = ({
         />
       )}
 
-      {/* Description Modal */}
       {showDescModal && (
         <ModalForm
           isOpen={showDescModal}
           header="Windfarm Description"
-          fields={[{ key: "description", label: "Description", type: "textarea", editable: false }]}
+          fields={[
+            {
+              key: "description",
+              label: "Description",
+              type: "textarea",
+              editable: false,
+            },
+          ]}
           values={{ description: selectedDesc }}
           onChange={() => {}}
           onClose={() => setShowDescModal(false)}

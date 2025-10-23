@@ -4,22 +4,12 @@ import Sidebar from "../components/sidebar";
 import Button from "../components/button";
 import GenericTable, { type Column } from "../components/table";
 import "../styles/ProjectManagementPage.css";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE ||
-  "https://screwed-trihydroxy-chantelle.ngrok-free.dev/api/v1";
+import {
+  inspectionService,
+  type InspectionSummary,
+} from "../../infrastructure/http/auth/inspectionService";
 
 type FilterStatus = "all" | "uploaded" | "processing" | "completed" | "failed";
-
-type InspectionSummary = {
-  id: string;
-  code?: string;
-  name?: string;
-  status?: string;
-  total_images?: number;
-  processed_images?: number;
-  created_at?: string;
-};
 
 const formatTimestamp = (value?: string) => {
   if (!value) return "-";
@@ -47,21 +37,14 @@ const InspectionListPage: React.FC = () => {
     if (!turbineId) return;
     setLoadingList(true);
     try {
-      const res = await fetch(
-        `${API_BASE}/inspections/turbine/${turbineId}`,
-        { credentials: "include" },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data?.message || "Failed to load inspections");
+      const result = await inspectionService.listByTurbine(turbineId);
+      if (!result.ok) {
+        alert(result.message || "Failed to load inspections");
         setInspections([]);
         return;
       }
-      if (Array.isArray(data)) {
-        setInspections(data as InspectionSummary[]);
-      } else {
-        setInspections([]);
-      }
+      const list = Array.isArray(result.data) ? result.data : [];
+      setInspections(list);
     } catch (err) {
       console.error("Failed to load inspections:", err);
       alert("Failed to load inspections");
@@ -88,24 +71,14 @@ const InspectionListPage: React.FC = () => {
 
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch(
-        `${API_BASE}/inspections/turbine/${turbineId}/upload`,
-        {
-          method: "POST",
-          body: form,
-          credentials: "include",
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data?.detail?.[0]?.msg || data?.message || "Upload failed");
+      const result = await inspectionService.uploadZip(turbineId, file);
+      if (!result.ok) {
+        alert(result.message || "Upload failed");
         return;
       }
       await fetchInspections();
-      if (data?.inspection_id) {
-        navigate(`/turbine/${turbineId}/inspection/${data.inspection_id}`);
+      if (result.data?.inspection_id) {
+        navigate(`/turbine/${turbineId}/inspection/${result.data.inspection_id}`);
       }
     } catch (err) {
       console.error("Upload failed:", err);
@@ -124,13 +97,9 @@ const InspectionListPage: React.FC = () => {
       if (!window.confirm("Delete this inspection?")) return;
       setDeletingId(inspectionId);
       try {
-        const res = await fetch(`${API_BASE}/inspections/${inspectionId}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          alert(data?.message || "Delete failed");
+        const result = await inspectionService.delete(inspectionId);
+        if (!result.ok) {
+          alert(result.message || "Delete failed");
           return;
         }
         await fetchInspections();

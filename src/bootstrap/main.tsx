@@ -4,10 +4,29 @@ import "../presentation/styles/index.css";
 import App from "../presentation/App";
 import { AppProviders } from "./AppProviders";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <AppProviders>
-      <App />
-    </AppProviders>
-  </StrictMode>
-);
+const loadRuntimeConfig = async () => {
+  try {
+    const res = await fetch("/app-config.json", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as Record<string, unknown>;
+    if (data && typeof data === "object") {
+      window.__APP_CONFIG__ = { ...(window.__APP_CONFIG__ ?? {}), ...data };
+    }
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[config] Unable to load app-config.json:", error);
+    }
+  }
+};
+
+const start = () => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <AppProviders>
+        <App />
+      </AppProviders>
+    </StrictMode>
+  );
+};
+
+loadRuntimeConfig().finally(start);

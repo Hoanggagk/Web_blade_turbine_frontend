@@ -1,4 +1,4 @@
-/* Base button chung */
+/* Base button styles */
 .btn {
   padding: 4px 8px;
   font-size: 13px;
@@ -12,10 +12,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;   /* bỏ gạch chân NavLink */
+  text-decoration: none; /* keep NavLink buttons free of underline */
 }
 
-/* Navigation Button */
+/* Navigation button */
 .btn-nav {
   padding: 6px 12px;
   font-size: 13px;
@@ -30,19 +30,22 @@
 }
 
 .btn-nav.active {
-  background: #3b5998; /* màu active */
+  background: #3b5998; /* active background */
   color: #fff;
-  border: 1px solid #0F3232;
+  border: 1px solid #0f3232;
 }
+
 .btn-nav + .btn-nav {
-  border-left: none; /* bỏ viền trái của nút đứng sau */
+  border-left: none; /* avoid duplicate divider between adjacent nav buttons */
 }
-/* Các nút khác giữ nguyên */
+
+/* Additional button variants */
 .btn-detail {
   background: #3b5998;
   color: #fff;
   border: 1px solid #2d4373;
 }
+
 .btn-detail:hover {
   background: #2d4373;
 }
@@ -53,9 +56,11 @@
   border: 1px solid #23723b;
   margin-left: 1rem;
 }
+
 .btn-approve:hover {
   background: #1a502a;
 }
+
 .btn-approve:disabled {
   background: #1a502a;
   color: #fff;
@@ -81,6 +86,7 @@
   color: #fff;
   border: none;
 }
+
 .btn-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -93,6 +99,7 @@
   outline: none;
   cursor: pointer;
 }
+
 .btn-delete:hover {
   background-color: #aa0404;
 }

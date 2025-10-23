@@ -42,7 +42,7 @@ export type GenericTableProps<T> = {
 };
 
 /* =========================
-   Table Manager (đã tối giản)
+   Table Manager (compact)
    ========================= */
 class TableManager<T> {
   private columns: Column<T>[];
@@ -50,7 +50,7 @@ class TableManager<T> {
   private getSelectionKey?: (row: T, index: number) => React.Key;
 
   constructor(
-    _data: T[], // không cần lưu
+    _data: T[], // data is managed externally
     columns: Column<T>[],
     getRowKey?: (row: T, index: number) => React.Key,
     getSelectionKey?: (row: T, index: number) => React.Key
@@ -89,6 +89,17 @@ class TableManager<T> {
     return Math.max(1, Math.ceil(total / pageSize));
   }
 }
+
+const SortIcon: React.FC<{ direction: "asc" | "desc" | "none" }> = ({ direction }) => {
+  const upOpacity = direction === "asc" ? 1 : direction === "none" ? 0.55 : 0.2;
+  const downOpacity = direction === "desc" ? 1 : direction === "none" ? 0.55 : 0.2;
+  return (
+    <svg viewBox="0 0 12 12" width="12" height="12" focusable="false" aria-hidden="true">
+      <path d="M2 6L6 1l4 5H2Z" fill="currentColor" fillOpacity={upOpacity} />
+      <path d="M2 6l4 5 4-5H2Z" fill="currentColor" fillOpacity={downOpacity} />
+    </svg>
+  );
+};
 
 /* =========================
    GenericTable Component
@@ -187,7 +198,15 @@ function GenericTable<T extends { id?: string }>({
               )}
               {columns.map((col) => {
                 const isActive = sortState.key === col.key;
-                const arrow = isActive ? (sortState.dir === "asc" ? " ▲" : " ▼") : "";
+                const sortDir = isActive ? sortState.dir : undefined;
+                const ariaSort =
+                  col.sortable && sortDir
+                    ? sortDir === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : col.sortable
+                    ? "none"
+                    : undefined;
                 return (
                   <th
                     key={col.key}
@@ -198,9 +217,14 @@ function GenericTable<T extends { id?: string }>({
                       cursor: col.sortable ? "pointer" : undefined,
                     }}
                     onClick={() => toggleSort(col)}
+                    aria-sort={ariaSort as React.AriaAttributes["aria-sort"]}
                   >
                     {col.headerRender ? col.headerRender() : col.header}
-                    {col.sortable && <span className="sort-arrow">{arrow}</span>}
+                    {col.sortable && (
+                      <span className="sort-arrow">
+                        <SortIcon direction={sortDir ?? "none"} />
+                      </span>
+                    )}
                   </th>
                 );
               })}
@@ -210,7 +234,7 @@ function GenericTable<T extends { id?: string }>({
             {loading ? (
               <tr>
                 <td colSpan={(enableSelection ? 1 : 0) + columns.length} className="no-data">
-                  Loading…
+                  Loading...
                 </td>
               </tr>
             ) : sorted.length === 0 ? (
@@ -271,21 +295,25 @@ function GenericTable<T extends { id?: string }>({
       {showPagination && (
         <div className="table-pagination">
           <button className="btn-plain" onClick={() => onPageChange!(1)} disabled={page <= 1}>
-            ⏮ First
+            {"<< "}
+            First
           </button>
           <button className="btn-plain" onClick={() => onPageChange!(page - 1)} disabled={page <= 1}>
-            ◀ Prev
+            {"< "}
+            Prev
           </button>
           <span className="page-info">
-            Page {page} / {totalPages} • Showing{" "}
-            {Math.min((page - 1) * pageSize! + 1, total!)}–
+            Page {page} / {totalPages} - Showing{" "}
+            {Math.min((page - 1) * pageSize! + 1, total!)}-
             {Math.min(page * pageSize!, total!)} of {total}
           </span>
           <button className="btn-plain" onClick={() => onPageChange!(page + 1)} disabled={page >= totalPages}>
-            Next ▶
+            Next
+            {" >"}
           </button>
           <button className="btn-plain" onClick={() => onPageChange!(totalPages)} disabled={page >= totalPages}>
-            Last ⏭
+            Last
+            {" >>"}
           </button>
         </div>
       )}

@@ -1,6 +1,6 @@
 // src/api/endpoints.ts
-// Wind Turbine Management API — v2.0.0 (OAS 3.1)
-// Lưu ý: api.baseURL nên trỏ tới ".../api/v1"
+// Wind Turbine Management API - v2.0.0 (OAS 3.1)
+// Note: api.baseURL should point to '.../api/v1'
 
 export const AUTH = {
   REGISTER: "/auth/register",
@@ -25,9 +25,6 @@ export const AUTH = {
   },
 } as const;
 
-// =======================
-// Projects
-// =======================
 // =======================
 // Projects
 // =======================
@@ -77,6 +74,20 @@ export const TURBINES = {
   // PUT /turbines/{turbine_id}/status
   UPDATE_STATUS: (turbine_id: string) => `/turbines/${turbine_id}/status`,
 } as const;
+
+// =======================
+// Inspections
+// =======================
+export const INSPECTIONS = {
+  LIST_BY_TURBINE: (turbine_id: string) => `/inspections/turbine/${turbine_id}`,
+  UPLOAD_ZIP: (turbine_id: string) => `/inspections/turbine/${turbine_id}/upload`,
+  DETAIL: (inspection_id: string) => `/inspections/${inspection_id}`,
+  DELETE: (inspection_id: string) => `/inspections/${inspection_id}`,
+  RESULTS: (inspection_id: string) => `/inspections/${inspection_id}/results`,
+  ANALYZE_IMAGE: (image_id: string) => `/inspections/images/${image_id}/analyze`,
+  IMAGE_STREAM: (image_id: string) => `/inspections/images/${image_id}/stream`,
+} as const;
+
 // =======================
 // Audit
 // =======================

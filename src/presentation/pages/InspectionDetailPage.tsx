@@ -9,11 +9,11 @@ import { useParams } from "react-router-dom";
 import Sidebar from "../components/sidebar";
 import Button from "../components/button";
 import "../styles/ImageListPage.css";
+import { inspectionService } from "../../infrastructure/http/auth/inspectionService";
+import { withApiBase } from "../../shared/config/env";
 
 const PAGE_SIZE = 24;
-const API_BASE =
-  import.meta.env.VITE_API_BASE || "https://screwed-trihydroxy-chantelle.ngrok-free.dev/api/v1";
-const CACHE_BUST = () => `v=${Date.now()}`;
+const CACHE_BUST = () => Date.now().toString();
 const ANALYZE_CONCURRENCY = 4;
 const RESULTS_POLL_INTERVAL = 7000;
 const ZOOM_MIN = 1;
@@ -343,8 +343,8 @@ const InspectionDetailPage: React.FC = () => {
   // ----- Helper Callbacks -----------------------------------------------------------
   const memoizedBuildUrl = useCallback((path: string) => {
     if (/^https?:\/\//.test(path)) return path;
-    const base = API_BASE.replace(/\/api\/v1$/, "");
-    return path.startsWith("/api") ? `${base}${path}` : `${API_BASE}${path}`;
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    return withApiBase(normalized);
   }, []);
 
   const refreshCacheBust = useCallback(() => {
@@ -352,10 +352,11 @@ const InspectionDetailPage: React.FC = () => {
   }, []);
 
   const memoizedGetImageStreamUrl = useCallback(
-    (id: string, bump?: number) => {
-      const bumpQuery = bump ? `&b=${bump}` : "";
-      return `${API_BASE}/inspections/images/${id}/stream?${cacheBustRef.current}${bumpQuery}`;
-    },
+    (id: string, bump?: number) =>
+      inspectionService.getImageStreamUrl(id, {
+        cacheKey: cacheBustRef.current,
+        bump,
+      }),
     [],
   );
 
@@ -379,13 +380,14 @@ const InspectionDetailPage: React.FC = () => {
   const fetchInspectionDetail = useCallback(async (id: string) => {
     setLoadingDetail(true);
     try {
-      const res = await fetch(`${API_BASE}/inspections/${id}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (res.ok) setDetail(data);
+      const result = await inspectionService.detail(id);
+      if (result.ok) {
+        setDetail(result.data as InspectionDetail);
+      } else {
+        console.error("Failed to load inspection:", result.message);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load inspection:", err);
     } finally {
       setLoadingDetail(false);
     }
@@ -394,23 +396,19 @@ const InspectionDetailPage: React.FC = () => {
   const fetchResultsOnce = useCallback(
     async (id: string) => {
       try {
-        const res = await fetch(`${API_BASE}/inspections/${id}/results`, {
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (!res.ok) return;
+        const result = await inspectionService.results(id);
+        if (!result.ok) return;
 
-        const signature = formatResultsSignature(data?.images);
+        const images = Array.isArray(result.data?.images) ? result.data.images : [];
+        const signature = formatResultsSignature(images);
         if (signature && signature === resultsSignatureRef.current) {
           return;
         }
         resultsSignatureRef.current = signature;
 
         const resultMap = new Map<string, ResultsItem>();
-        if (Array.isArray(data?.images)) {
-          for (const entry of data.images as ResultsItem[]) {
-            resultMap.set(entry.image_id, entry);
-          }
+        for (const entry of images as ResultsItem[]) {
+          resultMap.set(entry.image_id, entry);
         }
 
         setDetail((prev) => {
@@ -461,22 +459,14 @@ const InspectionDetailPage: React.FC = () => {
     async (imageId: string) => {
       setPerImageAnalyzing((prev) => ({ ...prev, [imageId]: true }));
       try {
-        const res = await fetch(
-          `${API_BASE}/inspections/images/${imageId}/analyze`,
-          {
-            method: "POST",
-            credentials: "include",
-          },
-        );
-        const data = await res.json();
-
-        if (res.ok) {
+        const result = await inspectionService.analyzeImage(imageId);
+        if (result.ok) {
           setDetail((prev) => {
             if (!prev) return prev;
             const updatedImages = prev.images.map((img) => {
               if (img.id !== imageId) return img;
               const newAssessments: Assessment[] = (
-                data?.damage_assessments || []
+                result.data?.damage_assessments || []
               ).map((assessment: any) => ({
                 ai_confidence: assessment.ai_confidence ?? 0,
                 ai_bounding_boxes: assessment.ai_bounding_boxes ?? [],
@@ -499,7 +489,7 @@ const InspectionDetailPage: React.FC = () => {
             [imageId]: (prev[imageId] || 0) + 1,
           }));
         } else {
-          console.error("Analyze failed:", data);
+          console.error("Analyze failed:", result.message);
         }
       } catch (err) {
         console.error("Analyze failed:", err);

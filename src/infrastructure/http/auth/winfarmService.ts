@@ -1,32 +1,29 @@
 import { api, type ApiResult } from "../core";
 import { WINDFARMS } from "../endpoints";
 import type {
-  WindfarmCreateRequest,
-  WindfarmUpdateRequest,
-  WindfarmBatchCreateRequest,
-  WindfarmResponse,
-  WindfarmListResponse,
   WindfarmAdminListResponse,
+  WindfarmBatchCreateRequest,
   WindfarmBatchResponse,
   WindfarmBulkDeleteResult,
+  WindfarmCreateRequest,
+  WindfarmListResponse,
+  WindfarmResponse,
+  WindfarmUpdateRequest,
 } from "../../../domain/winfarms/models";
 
 export const windfarmService = {
-  /** POST /windfarms/project/{project_id} */
   create: (
-    project_id: string,
+    projectId: string,
     data: WindfarmCreateRequest
   ): Promise<ApiResult<WindfarmResponse>> =>
-    api.post(WINDFARMS.CREATE(project_id), data),
+    api.post(WINDFARMS.CREATE(projectId), data),
 
-  /** POST /windfarms/project/{project_id}/batch */
   batchCreate: (
-    project_id: string,
+    projectId: string,
     data: WindfarmBatchCreateRequest
   ): Promise<ApiResult<WindfarmBatchResponse>> =>
-    api.post(WINDFARMS.BATCH_CREATE(project_id), data),
+    api.post(WINDFARMS.BATCH_CREATE(projectId), data),
 
-  /** GET /windfarms/project/{project_id} */
   listByProject: (params: {
     project_id: string;
     limit?: number;
@@ -35,11 +32,14 @@ export const windfarmService = {
   }): Promise<ApiResult<WindfarmListResponse>> => {
     const { project_id, limit = 50, offset = 0, search } = params;
     return api.get(WINDFARMS.LIST_BY_PROJECT(project_id), {
-      params: { limit, offset, ...(search ? { search } : {}) },
+      params: {
+        limit,
+        offset,
+        ...(search ? { search } : {}),
+      },
     });
   },
 
-  /** GET /windfarms/list (admin only) */
   listAll: (params?: {
     limit?: number;
     offset?: number;
@@ -48,24 +48,23 @@ export const windfarmService = {
     return api.get(WINDFARMS.LIST_ALL, { params: { limit, offset } });
   },
 
-  /** GET /windfarms/{windfarm_id} */
-  detail: (windfarm_id: string): Promise<ApiResult<WindfarmResponse>> =>
-    api.get(WINDFARMS.DETAIL(windfarm_id)),
+  detail: (
+    windfarmId: string,
+    signal?: AbortSignal
+  ): Promise<ApiResult<WindfarmResponse>> =>
+    api.get(WINDFARMS.DETAIL(windfarmId), { signal }),
 
-  /** PUT /windfarms/{windfarm_id} */
   update: (
-    windfarm_id: string,
+    windfarmId: string,
     data: WindfarmUpdateRequest
   ): Promise<ApiResult<WindfarmResponse>> =>
-    api.put(WINDFARMS.UPDATE(windfarm_id), data),
+    api.put(WINDFARMS.UPDATE(windfarmId), data),
 
-  /** DELETE /windfarms/{windfarm_id} */
-  remove: (windfarm_id: string): Promise<ApiResult<null>> =>
-    api.delete(WINDFARMS.DELETE(windfarm_id)),
+  remove: (windfarmId: string): Promise<ApiResult<null>> =>
+    api.delete(WINDFARMS.DELETE(windfarmId)),
 
-  /** DELETE /windfarms/bulk — body là string[] */
   bulkDelete: (
-    windfarm_ids: string[]
+    windfarmIds: string[]
   ): Promise<ApiResult<WindfarmBulkDeleteResult>> =>
-    api.delete(WINDFARMS.BULK_DELETE, { data: windfarm_ids }),
+    api.delete(WINDFARMS.BULK_DELETE, { data: windfarmIds }),
 };

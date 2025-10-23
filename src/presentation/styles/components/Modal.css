@@ -1,4 +1,4 @@
-/* ============ Overlay ============ */
+/* Overlay */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -9,7 +9,7 @@
   justify-content: center;
 }
 
-/* ============ Container ============ */
+/* Container */
 .modal-container {
   position: relative;
   background: #fff;
@@ -21,14 +21,10 @@
   border-radius: 0;
   box-sizing: border-box;
   font-size: 13px;
-
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* tránh tràn */
+  overflow: hidden; /* prevent scroll bleed */
 }
-
-/* các phần khác giữ nguyên */
-
 
 /* Close button */
 .modal-close {
@@ -42,7 +38,10 @@
   color: #333;
   cursor: pointer;
 }
-.modal-close:hover { color: #2d4373; }
+
+.modal-close:hover {
+  color: #2d4373;
+}
 
 /* Header */
 .modal-header {
@@ -53,7 +52,7 @@
   color: #000;
 }
 
-/* Form (scroll nếu dài) */
+/* Form */
 .modal-form {
   flex: 1;
   overflow-y: auto;
@@ -90,7 +89,7 @@
 .modal-field input:focus,
 .modal-field textarea:focus {
   outline: none;
-  border-color: #3B5998;
+  border-color: #3b5998;
 }
 
 .modal-field input:disabled,

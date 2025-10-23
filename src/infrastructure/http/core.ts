@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosResponse } from "axios";
+import { API_BASE_URL } from "../../shared/config/env";
 
 export type ApiOk<T> = { ok: true; data: T; message?: string; status: number };
 export type ApiErr = { ok: false; data: any; message: string; status: number };
@@ -91,9 +92,11 @@ function toErr(error: AxiosError): ApiErr {
 
 // -------------------- axios instance --------------------
 export const apiClient = axios.create({
-  baseURL: "https://screwed-trihydroxy-chantelle.ngrok-free.dev/api/v1", // 👈 chỉnh lại nếu cần ENV
-  headers: { "Content-Type": "application/json" },
+  baseURL: API_BASE_URL,
   withCredentials: true,
+  headers: {
+    Accept: "application/json",
+  },
 });
 
 apiClient.interceptors.request.use((config) => config);
@@ -142,7 +145,7 @@ export const api = {
     }
   },
 
-  // ✅ DELETE có thể có body (bulk delete)
+  // Allow DELETE requests to carry a body (bulk delete)
   delete: async <T>(
     url: string,
     config?: Parameters<typeof apiClient.delete>[1] & { data?: any }
@@ -155,7 +158,7 @@ export const api = {
     }
   },
 
-  // ✅ PATCH – thêm mới để hỗ trợ update partial
+  // PATCH helper supports partial updates
   patch: async <T>(
     url: string,
     data?: any,

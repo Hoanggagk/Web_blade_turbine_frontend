@@ -1,4 +1,4 @@
-/* ================== Container chính ================== */
+/* ================== Container ================== */
 .ProjectManagementPage {
   display: flex;
   height: 100vh;
@@ -44,7 +44,7 @@
 }
 
 /* ================== Toolbar ================== */
-/* Cho input chiếm phần còn lại, nút create nằm bên phải cùng hàng */
+/* Allow inputs to stretch while keeping the create button on the right */
 .toolbar {
   width: 100%;
   display: flex;
@@ -52,27 +52,27 @@
   gap: 0.75rem;
   justify-content: flex-start;        /* was: space-between */
 }
-/* Đẩy cụm nút sang phải */
+/* Push grouped buttons to the right */
 .toolbar-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
 }
-/* Chặn style nội bộ của Button làm nó block/center */
+/* Normalize button display inside the toolbar */
 .toolbar-actions > * {
   display: inline-flex !important;
   margin: 0 !important;
 }
 
-/* (khuyến nghị) tránh bị text-align toàn cục làm lệch */
+/* Avoid forcing global text-align overrides */
 .toolbar {
   text-align: initial;
 }
 
 .search-input {
-  flex: 1;                             /* NEW: co giãn chiếm khoảng trống */
+  flex: 1;                             /* Allow the input to grow and fill available space */
   min-width: 240px;
-  width: auto;                         /* override width:100% trước đây */
+  width: auto;                         /* override the previous width:100% rule */
   padding: 5px;
   font-size: 13px;
   border: 1px solid #999;
@@ -84,11 +84,11 @@
   border: 1px solid #2d4373;
 }
 
-/* (tuỳ chọn) nếu bạn muốn thêm className="btn-create" vào Button thì có thể thêm rule này
+/* Optional: add .btn-create rules here if needed
 .toolbar .btn-create { margin-left: 0; } 
 */
 
-/* ================== Table & overlay ================== */
+/* ================== Table & Overlay ================== */
 .table-section {
   position: relative;
 }

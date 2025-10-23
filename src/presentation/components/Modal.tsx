@@ -25,6 +25,21 @@ type ModalFormProps = {
   footer?: React.ReactNode;
 };
 
+const CloseIcon: React.FC = () => (
+  <svg
+    viewBox="0 0 16 16"
+    focusable="false"
+    aria-hidden="true"
+    width="12"
+    height="12"
+  >
+    <path
+      d="M3.22 3.22a.75.75 0 0 1 1.06 0L8 6.94l3.72-3.72a.75.75 0 1 1 1.06 1.06L9.06 8l3.72 3.72a.75.75 0 1 1-1.06 1.06L8 9.06l-3.72 3.72a.75.75 0 1 1-1.06-1.06L6.94 8 3.22 4.28a.75.75 0 0 1 0-1.06Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 const ModalForm = ({
   isOpen,
   header,
@@ -37,7 +52,7 @@ const ModalForm = ({
 }: ModalFormProps) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // ESC để đóng
+  // Close modal when the Escape key is pressed
   useEffect(() => {
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -68,12 +83,14 @@ const ModalForm = ({
         if (overlayRef.current) overlayRef.current.dataset.closable = "false";
       }}
     >
-      <div
-        className="modal-container"
-        onClick={(e) => e.stopPropagation()} // chặn click trong modal
-      >
-        <button className="modal-close" onClick={onClose}>
-          ✕
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <button
+          className="modal-close"
+          onClick={onClose}
+          type="button"
+          aria-label="Close modal"
+        >
+          <CloseIcon />
         </button>
 
         {header && <h2 className="modal-header">{header}</h2>}
@@ -110,7 +127,7 @@ const ModalForm = ({
                     multiple
                     disabled={field.editable === false}
                     onChange={(e) => {
-                      // chỉ lấy tên file để hiển thị, value thực tế quản lý ở ngoài
+                      // Collect file names for display; the actual file data is managed externally
                       const files = e.target.files
                         ? Array.from(e.target.files).map((f) => f.name).join(", ")
                         : "";
