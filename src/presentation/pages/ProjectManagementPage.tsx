@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Sidebar from "../components/sidebar";
 import ModalForm from "../components/Modal";
 import Button from "../components/button";
+import Toolbar from "../components/Toolbar";
 import GenericTable, { type Column } from "../components/table";
 import type { ProjectUI } from "../../domain/projects/models";
 import "../styles/ProjectManagementPage.css";
@@ -137,147 +138,145 @@ const ProjectManagementPage: React.FC<Props> = ({
     description: editDescription,
   };
 
-  const columns: Column<ProjectUI>[] = [
+    const columns: Column<ProjectUI>[] = [
     {
       key: "index",
       header: "#",
       size: 0.05,
       align: "center",
-      render: (_r, i) => i + 1 + ((page ?? 1) - 1) * (pageSize ?? 10),
+      render: (_row, index) => index + 1 + ((page ?? 1) - 1) * (pageSize ?? 10),
     },
     {
       key: "id",
       header: "ID",
       size: 0.2,
-      render: (p) => <code>{p.id}</code>,
+      render: (project) => <code>{project.id}</code>,
     },
     {
       key: "name",
       header: "Project",
       size: 0.2,
       sortable: true,
-      sortAccessor: (r) => r.name.toLowerCase(),
+      sortAccessor: (row) => row.name.toLowerCase(),
     },
     {
       key: "created_at",
       header: "Created",
       size: 0.12,
       align: "right",
-      render: (p) => formatDate(p.created_at),
+      render: (project) => formatDate(project.created_at),
     },
     {
       key: "updated_at",
       header: "Updated",
       size: 0.12,
       align: "right",
-      render: (p) => formatDate(p.updated_at),
+      render: (project) => formatDate(project.updated_at),
     },
     {
       key: "windfarm_count",
       header: "Windfarms",
       size: 0.08,
       align: "center",
-      render: (p) => p.windfarm_count ?? 0,
+      render: (project) => project.windfarm_count ?? 0,
     },
     {
       key: "member_count",
       header: "Members",
       size: 0.08,
       align: "center",
-      render: (p) => p.member_count ?? 0,
+      render: (project) => project.member_count ?? 0,
     },
     {
       key: "turbine_count",
       header: "Turbines",
       size: 0.08,
       align: "center",
-      render: (p) => p.turbine_count ?? 0,
+      render: (project) => project.turbine_count ?? 0,
     },
     {
       key: "created_by",
       header: "Created By",
       size: 0.15,
-      render: (p) => p.created_by?.email ?? "—",
+      render: (project) => project.created_by?.email ?? "-",
     },
     {
       key: "description",
       header: "Description",
       align: "center",
-      render: (wf) =>
-        wf.description ? (
+      render: (project) =>
+        project.description ? (
           <Button
             variant="detail"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedDesc(wf.description ?? "");
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedDesc(project.description ?? "");
               setShowDescModal(true);
             }}
           >
             View
           </Button>
         ) : (
-          "—"
+          "-"
         ),
     },
     {
       key: "actions",
       header: "Action",
       size: 0.25,
-      render: (p) => (
-        <>
+      render: (project) => (
+        <div className="project-page__actions">
           <Button
             variant="detail"
-            style={{ marginRight: "0.5rem" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onManageClick?.(p);
+            onClick={(event) => {
+              event.stopPropagation();
+              onManageClick?.(project);
             }}
           >
             Member
           </Button>
           <Button
             variant="submit"
-            style={{ marginRight: "0.5rem" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedProject(p); // giữ lại project đầy đủ
-              onEditClick?.(p);
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedProject(project);
+              onEditClick?.(project);
             }}
           >
             Edit
           </Button>
           <Button
             variant="delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteClick?.(p);
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteClick?.(project);
             }}
-            loading={loadingDeleteId === p.id}
+            loading={loadingDeleteId === project.id}
           >
             Delete
           </Button>
-        </>
+        </div>
       ),
     },
   ];
 
   return (
-    <div className="ProjectManagementPage">
-      <aside className="sidebar-content">
+    <div className="app-shell app-shell--viewport project-page">
+      <aside className="page-sidebar">
         <Sidebar />
       </aside>
 
-      <main className="main-content">
-        <div className="content-body">
-          <div className="toolbar">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search project name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <div className="toolbar-actions">
+      <main className="page-main page-main--padded">
+        <div className="page-body">
+          <Toolbar justify="between">
+            <Toolbar.Search>
+              <Toolbar.SearchInput
+                placeholder="Search project name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </Toolbar.Search>
+            <Toolbar.Actions>
               <Button
                 variant="submit"
                 onClick={onCreateClick}
@@ -285,8 +284,8 @@ const ProjectManagementPage: React.FC<Props> = ({
               >
                 + Create
               </Button>
-            </div>
-          </div>
+            </Toolbar.Actions>
+          </Toolbar>
           <div className="table-section">
             <GenericTable<ProjectUI>
               data={projects}
@@ -397,3 +396,4 @@ const ProjectManagementPage: React.FC<Props> = ({
 };
 
 export default ProjectManagementPage;
+

@@ -1,6 +1,7 @@
 import Sidebar from "../components/sidebar";
 import "../styles/UserManagementPage.css";
 import Button from "../components/button";
+import Toolbar from "../components/Toolbar";
 import GenericTable from "../components/table";
 import type { Column } from "../components/table";
 
@@ -88,83 +89,74 @@ function UserManagementPage({
       headerClassName: "col-center",
       className: "col-center",
       render: (user) => (
-        <span
-          className={
-            user.status === "Active" ? "status-active" : "status-inactive"
-          }
-        >
+        <span className={`status-badge ${user.status === "Active" ? "status-badge--active" : "status-badge--inactive"}`}>
           {user.status}
         </span>
       ),
     },
-    {
+        {
       key: "actions",
       header: "Action",
       size: 0.16,
       className: "action-cell",
       render: (user) => (
-        <>
+        <div className="user-management__actions">
           <Button
             variant="delete"
-            onClick={(e: any) => {
-              e.stopPropagation(); // tránh click cả dòng
+            onClick={(event: any) => {
+              event.stopPropagation();
               onDeleteClick(user);
             }}
             loading={deleteLoading === user.id}
-            style={{ marginRight: 8 }}
           >
             Delete
           </Button>
           <Button
             variant="approve"
             hidden={user.status === "Active"}
-            onClick={(e: any) => {
-              e.stopPropagation();
+            onClick={(event: any) => {
+              event.stopPropagation();
               onApproveClick(user);
             }}
             loading={approveLoading === user.id}
           >
             Approve
           </Button>
-        </>
+        </div>
       ),
     },
   ];
 
   return (
-    <div className="UserManagementPage">
-      {/* Sidebar */}
-      <aside className="sidebar-content">
+    <div className="app-shell app-shell--viewport user-management">
+      <aside className="page-sidebar">
         <Sidebar />
       </aside>
 
-      {/* Main Content */}
-      <main className="main-content">
-        <div className="content-body">
-          {/* Toolbar */}
-          <div className="toolbar">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search email or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+      <main className="page-main page-main--padded">
+        <div className="page-body">
+          <Toolbar>
+            <Toolbar.Search>
+              <Toolbar.SearchInput
+                placeholder="Search email or phone..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </Toolbar.Search>
+          </Toolbar>
+
+          <div className="user-management__table">
+            <GenericTable<User>
+              data={users}
+              columns={columns}
+              loading={!!loadingList}
+              emptyText="No users"
+              stickyHeader
+              cellProps={(_row, col) =>
+                col.key === "actions" ? { onClick: (event) => event.stopPropagation() } : {}
+              }
             />
           </div>
-
-          {/* Table */}
-          <GenericTable<User>
-            data={users}
-            columns={columns}
-            loading={!!loadingList}
-            emptyText="No users"
-            stickyHeader
-            // Nếu sau này muốn click cả dòng: onRowClick={(u) => ...}
-            // Chặn nổi bọt ở cell Actions (phòng ngừa):
-            cellProps={(_row, col) =>
-              col.key === "actions" ? { onClick: (e) => e.stopPropagation() } : {}
-            }
-          />
         </div>
       </main>
     </div>
@@ -172,3 +164,10 @@ function UserManagementPage({
 }
 
 export default UserManagementPage;
+
+
+
+
+
+
+

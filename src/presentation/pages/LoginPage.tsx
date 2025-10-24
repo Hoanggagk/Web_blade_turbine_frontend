@@ -1,4 +1,5 @@
 import React from "react";
+import Button from "../components/button";
 import "../styles/LoginPage.css";
 import { useNavigate } from "react-router-dom";
 
@@ -25,76 +26,76 @@ function LoginPage({
 }: LoginPageProps) {
   const navigate = useNavigate();
 
-  return (
+    return (
     <div className="login-page">
-      <div className="login-form-container">
-        <h2 className="login-title">Login</h2>
-        <form onSubmit={onSubmit}>
-          <div className="input-form-container">
-            <label className="input-label">Your email or phone</label>
-            <div className="input-container">
-              <input
-                type="text"
-                className="login-input"
-                value={username}
-                onChange={(e) => onUsernameChange(e.target.value)}
-                placeholder="Enter your email or phone"
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
+      <form className="auth-form" onSubmit={onSubmit}>
+        <div className="auth-form__header">
+          <h2 className="auth-form__title">Login</h2>
+          {info && <p className="auth-form__subtitle">{info}</p>}
+        </div>
 
-          <div className="input-form-container">
-            <label className="input-label">Your password</label>
-            <div className="input-container">
-              <input
-                type="password"
-                className="login-input"
-                value={password}
-                onChange={(e) => onPasswordChange(e.target.value)}
-                placeholder="Enter your password"
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* ✅ Hiển thị error */}
-          {error && <p className="error-message">{error}</p>}
-
-          {/* ✅ Hiển thị info */}
-          {info && <p className="info-message">{info}</p>}
-
-          <button
-            type="button"
-            className="forgot-password-button"
-            onClick={() => navigate("/forgot-password")}
+        <div className="form-field">
+          <label className="form-label" htmlFor="login-username">
+            Your email or phone
+          </label>
+          <input
+            id="login-username"
+            type="text"
+            className="form-input"
+            value={username}
+            onChange={(event) => onUsernameChange(event.target.value)}
+            placeholder="Enter your email or phone"
+            required
             disabled={loading}
-          >
-            Forgot Password?
-          </button>
+          />
+        </div>
 
-          <button
-            type="submit"
-            className="login-submit-button"
+        <div className="form-field">
+          <label className="form-label" htmlFor="login-password">
+            Your password
+          </label>
+          <input
+            id="login-password"
+            type="password"
+            className="form-input"
+            value={password}
+            onChange={(event) => onPasswordChange(event.target.value)}
+            placeholder="Enter your password"
+            required
             disabled={loading}
-          >
+          />
+        </div>
+
+        {error && <p className="form-error">{error}</p>}
+
+        <button
+          type="button"
+          className="login-page__forgot"
+          onClick={() => navigate("/forgot-password")}
+          disabled={loading}
+        >
+          Forgot Password?
+        </button>
+
+        <div className="auth-form__actions">
+          <Button variant="submit" type="submit" disabled={loading}>
             {loading ? "Login..." : "Login"}
-          </button>
-
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
-            className="sign-up-button"
             onClick={() => navigate("/sign-up")}
             disabled={loading}
           >
             Sign Up
-          </button>
-        </form>
-      </div>
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
 
 export default LoginPage;
+
+
+

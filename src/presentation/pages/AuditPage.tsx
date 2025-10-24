@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "../components/sidebar";
 import GenericTable, { type Column } from "../components/table";
 import Button from "../components/button";
+import Toolbar from "../components/Toolbar";
 import ModalForm from "../components/Modal";
 import type { AuditLogUI } from "../../domain/audit/models";
 import "../styles/AuditPage.css";
@@ -75,23 +76,18 @@ function AuditLogsPage({
       key: "action",
       header: "Action",
       size: 0.1,
-      render: (row) => (
-        <span
-          style={{
-            fontWeight: 600,
-            color:
-              row.action === "DELETE"
-                ? "red"
-                : row.action === "UPDATE"
-                ? "orange"
-                : row.action === "CREATE"
-                ? "green"
-                : "black",
-          }}
-        >
-          {row.action}
-        </span>
-      ),
+      render: (row) => {
+        const actionClass =
+          row.action === "DELETE"
+            ? "audit-page__action--delete"
+            : row.action === "UPDATE"
+            ? "audit-page__action--update"
+            : row.action === "CREATE"
+            ? "audit-page__action--create"
+            : "audit-page__action--default";
+
+        return <span className={`audit-page__action ${actionClass}`}>{row.action}</span>;
+      },
     },
     { key: "entityType", header: "Entity Type", size: 0.12 },
     { key: "entityId", header: "Entity ID", size: 0.15 },
@@ -190,70 +186,92 @@ function AuditLogsPage({
       ? stats.total
       : total;
 
-  return (
-    <div className="AuditLogsPage">
-      <aside className="sidebar-content">
+    return (
+    <div className="app-shell app-shell--viewport audit-page">
+      <aside className="page-sidebar">
         <Sidebar />
       </aside>
 
-      <main className="main-content">
-        <div className="content-body">
-          {/* Summary */}
-          <section className="audit-summary">
-            <div><b>Total:</b> {totalFromStats}</div>
+      <main className="page-main page-main--padded">
+        <div className="page-body">
+          <section className="audit-page__summary">
             <div>
-              <b>Page:</b> {page} · <b>Page size:</b> {pageSize} · <b>Showing:</b>{" "}
-              {logs.length ? (page - 1) * pageSize + 1 : 0}–
-              {(page - 1) * pageSize + logs.length} of {total}
+              <strong>Total:</strong> {totalFromStats}
+            </div>
+            <div>
+              <strong>Page:</strong> {page} - <strong>Page size:</strong> {pageSize} - <strong>Showing:</strong>{" "}
+              {logs.length ? (page - 1) * pageSize + 1 : 0}-{(page - 1) * pageSize + logs.length} of {total}
             </div>
           </section>
 
-          {/* Stats */}
           {stats && typeof stats === "object" && (
-            <section className="audit-stats">
-              {stats.by_action && <p><b>By Action:</b> {JSON.stringify(stats.by_action)}</p>}
-              {stats.by_entity && <p><b>By Entity:</b> {JSON.stringify(stats.by_entity)}</p>}
+            <section className="audit-page__stats">
+              {stats.by_action && <p><strong>By Action:</strong> {JSON.stringify(stats.by_action)}</p>}
+              {stats.by_entity && <p><strong>By Entity:</strong> {JSON.stringify(stats.by_entity)}</p>}
             </section>
           )}
 
-          {/* Toolbar */}
-{/* Toolbar */}
-<section className="toolbar">
-  <div className="filters">
-    <select value={action} onChange={(e) => setAction(e.target.value)}>
-      <option value="">All Actions</option>
-      <option value="CREATE">CREATE</option>
-      <option value="UPDATE">UPDATE</option>
-      <option value="DELETE">DELETE</option>
-      <option value="STATUS_CHANGE">STATUS_CHANGE</option>
-      <option value="MEMBER_ADDED">MEMBER_ADDED</option>
-      <option value="MEMBER_REMOVED">MEMBER_REMOVED</option>
-    </select>
-    <select value={entityType} onChange={(e) => setEntityType(e.target.value)}>
-      <option value="">All Entities</option>
-      <option value="PROJECT">PROJECT</option>
-      <option value="WINDFARM">WINDFARM</option>
-      <option value="TURBINE">TURBINE</option>
-      <option value="PROJECT_MEMBER">PROJECT_MEMBER</option>
-    </select>
-    <input type="text" placeholder="Actor ID" value={actor} onChange={(e) => setActor(e.target.value)} />
-    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-  </div>
+          <Toolbar justify="between">
+            <Toolbar.Section className="audit-page__filters">
+              <select
+                className="input input--sm"
+                value={action}
+                onChange={(event) => setAction(event.target.value)}
+              >
+                <option value="">All Actions</option>
+                <option value="CREATE">CREATE</option>
+                <option value="UPDATE">UPDATE</option>
+                <option value="DELETE">DELETE</option>
+                <option value="STATUS_CHANGE">STATUS_CHANGE</option>
+                <option value="MEMBER_ADDED">MEMBER_ADDED</option>
+                <option value="MEMBER_REMOVED">MEMBER_REMOVED</option>
+              </select>
+              <select
+                className="input input--sm"
+                value={entityType}
+                onChange={(event) => setEntityType(event.target.value)}
+              >
+                <option value="">All Entities</option>
+                <option value="PROJECT">PROJECT</option>
+                <option value="WINDFARM">WINDFARM</option>
+                <option value="TURBINE">TURBINE</option>
+                <option value="PROJECT_MEMBER">PROJECT_MEMBER</option>
+              </select>
+              <input
+                className="input input--sm"
+                type="text"
+                placeholder="Actor ID"
+                value={actor}
+                onChange={(event) => setActor(event.target.value)}
+              />
+              <input
+                className="input input--sm"
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+              <input
+                className="input input--sm"
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </Toolbar.Section>
+            <Toolbar.Actions className="audit-page__actions">
+              <Button onClick={onFilter}>Apply</Button>
+              <Button onClick={onExport}>Export CSV</Button>
+              <label className="audit-page__checkbox">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(event) => setAutoRefresh(event.target.checked)}
+                />
+                Auto Refresh
+              </label>
+            </Toolbar.Actions>
+          </Toolbar>
 
-  <div className="actions">
-    <Button onClick={onFilter}>Apply</Button>
-    <Button onClick={onExport}>Export CSV</Button>
-    <label className="autorefresh">
-      <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-      Auto Refresh
-    </label>
-  </div>
-</section>
-
-
-          {/* Table */}
-          <section className="table-section">
+          <div className="audit-page__table">
             <GenericTable<AuditLogUI>
               data={logs}
               columns={columns}
@@ -265,9 +283,8 @@ function AuditLogsPage({
               total={total}
               onPageChange={onPageChange}
             />
-          </section>
+          </div>
 
-          {/* Popups */}
           <ModalForm
             isOpen={showDescModal}
             header="Description"
@@ -336,3 +353,7 @@ function AuditLogsPage({
 }
 
 export default AuditLogsPage;
+
+
+
+

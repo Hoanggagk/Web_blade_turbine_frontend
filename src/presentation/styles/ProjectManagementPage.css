@@ -1,92 +1,17 @@
-/* ================== Container ================== */
-.ProjectManagementPage {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  background: #fff;
+/* ================== Project page ================== */
+.project-page {
+  display: contents;
 }
 
-/* ================== Sidebar ================== */
-.sidebar-content {
-  width: 220px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  background: #f9f9f9;
-}
-
-/* ================== Main content ================== */
-.main-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 1rem;
-  background: #fff;
-}
-
-/* ================== Content body ================== */
-.content-body {
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 1400px;
-  gap: 1rem;
-  position: relative;
-}
-
-.content-body::after {
-  content: '';
-  display: block;
-  height: 5rem;
-}
-
-/* ================== Toolbar ================== */
-/* Allow inputs to stretch while keeping the create button on the right */
-.toolbar {
-  width: 100%;
-  display: flex;
+.project-page__actions {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  justify-content: flex-start;        /* was: space-between */
-}
-/* Push grouped buttons to the right */
-.toolbar-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
-/* Normalize button display inside the toolbar */
-.toolbar-actions > * {
-  display: inline-flex !important;
-  margin: 0 !important;
+  gap: var(--spacing-xs, 0.35rem);
 }
 
-/* Avoid forcing global text-align overrides */
-.toolbar {
-  text-align: initial;
+.project-page__actions .btn {
+  min-width: 5rem;
 }
-
-.search-input {
-  flex: 1;                             /* Allow the input to grow and fill available space */
-  min-width: 240px;
-  width: auto;                         /* override the previous width:100% rule */
-  padding: 5px;
-  font-size: 13px;
-  border: 1px solid #999;
-  box-sizing: border-box;
-}
-
-.search-input:focus {
-  outline: none;
-  border: 1px solid #2d4373;
-}
-
-/* Optional: add .btn-create rules here if needed
-.toolbar .btn-create { margin-left: 0; } 
-*/
 
 /* ================== Table & Overlay ================== */
 .table-section {
@@ -112,29 +37,130 @@
   font-size: 14px;
 }
 
-/* ================== Status tags ================== */
-.status-active { color: #0b8a2e; font-weight: 600; }
-.status-notstarted { color: #777; font-weight: 600; }
-.status-paused { color: #a87100; font-weight: 600; }
-.status-completed { color: #1b5c9a; font-weight: 600; }
-.status-unknown { color: #999; font-weight: 600; }
-
-/* ================== Responsive ================== */
-@media (max-width: 1200px) { .content-body { max-width: 1000px; } }
-
-@media (max-width: 992px) {
-  .sidebar-content { width: 200px; }
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .search-input { width: 100%; min-width: 0; }
+/* ----- Card view enhancements (Oct 2025) ----- */
+.inspection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  margin-top: 1rem;
 }
-
+.inspection-grid--loading {
+  opacity: 0.6;
+}
+.inspection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e1e7f2;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  cursor: pointer;
+}
+.inspection-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  border-color: #c5d2f5;
+}
+.inspection-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 3px;
+}
+.inspection-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.inspection-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.inspection-card__code {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.inspection-card__id {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.inspection-card__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.inspection-card__meta-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  margin-bottom: 0.15rem;
+}
+.inspection-card__meta-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.inspection-card__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.inspection-card__progress-bar {
+  position: relative;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+.inspection-card__progress-bar span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  transition: width 200ms ease;
+}
+.inspection-card__progress-label {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 600;
+}
+.inspection-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.inspection-card__footer .btn {
+  min-width: 5rem;
+}
+.inspection-card--skeleton {
+  min-height: 200px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #eff3fb 0%, #e4e9f5 50%, #eff3fb 100%);
+  background-size: 200% 100%;
+  animation: inspection-card-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes inspection-card-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @media (max-width: 768px) {
-  .ProjectManagementPage { flex-direction: column; }
-  .sidebar-content { width: 100%; order: -1; }
-  .main-content { width: 100%; overflow-x: auto; }
+  .inspection-card__meta {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
 }
-
 @media (max-width: 576px) {
-  .toolbar { flex-direction: column; gap: 0.5rem; }
-  .search-input { font-size: 12px; padding: 4px 6px; }
+  .inspection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  .inspection-card__meta {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
 }

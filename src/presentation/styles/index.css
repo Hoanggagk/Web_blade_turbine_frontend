@@ -1,19 +1,26 @@
+@import "./foundations/tokens.css";
+@import "./foundations/layout.css";
+@import "./foundations/auth-forms.css";
+@import "./foundations/form-controls.css";
+@import "./components/status-badge.css";
+
 /* Global reset */
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
 body {
   margin: 0;
-  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  font-family: "Inter", var(--font-family, "Segoe UI"), Arial, sans-serif;
   font-size: 16px;
   line-height: 1.5;
-  color: #111827;
-  background-color: #f3f4f6;
+  color: var(--color-text, #111827);
+  background-color: var(--color-bg, #f3f4f6);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }

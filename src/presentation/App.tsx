@@ -21,8 +21,8 @@ import WindfarmLogic from "../application/useCases/WinfarmLogic";
 import WindfarmAdminLogic from "../application/useCases/WindfarmAdminLogic";
 import TurbinePageLogic from "../application/useCases/TurbinePageLogic";
 import AuditLogsLogic from "../application/useCases/AuditLogic";
-import InspectionListPage from "./pages/InspectionListPage";
-import InspectionDetailPage from "./pages/InspectionDetailPage";
+import InspectionListLogic from "../application/useCases/InspectionListLogic";
+import InspectionDetailLogic from "../application/useCases/InspectionDetailLogic";
 import UploadPage from "./pages/UploadPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -86,7 +86,7 @@ export default function App() {
         path="/turbine/:turbineId"
         element={
           <ProtectedRoute>
-            <InspectionListPage />
+            <InspectionListLogic />
           </ProtectedRoute>
         }
       />
@@ -94,7 +94,7 @@ export default function App() {
         path="/turbine/:turbineId/inspection/:inspectionId"
         element={
           <ProtectedRoute>
-            <InspectionDetailPage />
+            <InspectionDetailLogic />
           </ProtectedRoute>
         }
       />

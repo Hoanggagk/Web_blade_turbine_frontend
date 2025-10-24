@@ -1,88 +1,24 @@
 .sign-up-page {
-  height: 100vh;
-  width: 100vw;
-  background: #ffffff;
+  min-height: 100vh;
+  width: 100%;
   display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: center;
+  padding: var(--spacing-xl, 1.5rem);
+  background: var(--color-bg, #f7f9fc);
 }
 
-.sign-up-form-container {
-  width: 100%;
-  max-width: 400px;
+.sign-up-page .auth-form {
+  max-width: 420px;
+}
+
+.sign-up-page__title {
+  font-size: 1.75rem;
+  margin-bottom: var(--spacing-sm, 0.5rem);
+}
+
+.sign-up-page__actions {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  padding: 20px;
-  gap: 0; /* sẽ dùng margin-bottom cho các input block */
-}
-
-.input-form-container {
-  font-size: 15px;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 0.2rem;           /* khoảng cách label → input */
-  margin-bottom: 1rem;    /* khoảng cách giữa các input block */
-}
-
-.input-form-container:last-child {
-  margin-bottom: 0;       /* loại bỏ khoảng trống trước nút */
-}
-
-.input-label {
-  font-size: 13px;
-  color: #000000;
-}
-.sign-up-title {
-    font-size: 35px;
-    font-weight: bold;
-    color: #000000;
-    margin-bottom: 1rem;
-}
-.input-container {
-  width: 100%;
-  height: 45px;
-  border: 1px solid #ccc; /* nhẹ nhàng, flat */
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.sign-up-input {
-  border: none;
-  outline: none;
-  flex: 1;
-  padding: 0 12px;      /* giữ kích thước input */
-  width: 100%;
-  font-size: 15px;
-  color: #333;
-  box-sizing: border-box;
-}
-
-.signup-btn {
-  background: #ffffff;
-  color: #000000;
-  border: 1px solid #000;
-  cursor: pointer;
-  width: 100%;
-  margin-top: 0;         /* khoảng cách đã được margin-bottom của input cuối */
-  padding: 12px 0;
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 0;
-  transition: background 0.2s ease;
-}
-
-.signup-btn:hover {
-  background: #ececec;  /* hover nhẹ, flat */
-  color: #000000;
-  border: 1px solid #000;
-  border-radius: 0;
-}
-.signup-btn:disabled {
-  background: #f0f0f0;
-  color: #999999;
-  border: 1px solid #cccccc;
-  cursor: not-allowed;
+  gap: var(--spacing-sm, 0.5rem);
 }

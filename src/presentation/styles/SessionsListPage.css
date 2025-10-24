@@ -1,321 +1,49 @@
-/* ================== Container chính - toàn bộ page ================== */
-.SessionPage {
-  display: flex;        /* sidebar + main content theo hàng ngang */
-  height: 100vh;        /* full chiều cao viewport */
-  width: 100vw;         /* full chiều ngang */
-  background: #ffffff;  /* optional để tách sidebar và main rõ hơn */
+.sessions-page {
+  display: contents;
 }
 
-/* ================== Sidebar ================== */
-.sidebar-content {
-  width: 220px;         /* chiều ngang cố định */
-  flex-shrink: 0;       /* không co lại khi container bị thu nhỏ */
-  overflow-y: auto;     /* scroll nếu nội dung dài */
+.sessions-page__toolbar {
+  display: contents;
 }
 
-/* ================== Main content ================== */
-.main-content {
-  flex: 1;              /* chiếm phần còn lại */
-  min-width: 0;         /* tránh tràn nội dung */
+.sessions-page__filters {
   display: flex;
-  flex-direction: column;
-  align-items: center;  /* căn ngang nội dung body */
-  background: #fff;
-  overflow-y: auto;
-  padding: 1rem;
-}
-
-/* ================== Content body ================== */
-.content-body {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm, 0.5rem);
   width: 100%;
-  max-width: 1400px;    /* giới hạn chiều ngang */
-  gap: 1rem;            /* khoảng cách giữa các block */
-  position: relative;
 }
 
-/* pseudo-element để tạo khoảng trống cuối page mà không đẩy border */
-.content-body::after {
-  content: '';
-  display: block;
-  height: 5rem;
+.sessions-page__filters .input {
+  min-width: 200px;
 }
 
-/* ================== Toolbar (nút + search) ================== */
-.toolbar {
+.sessions-page__table {
   width: 100%;
-  display: flex;
-  flex-direction: column; /* dọc, nếu muốn ngang: row */
-  justify-content: space-between;
+}
+
+.sessions-page__table .action-cell {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 1rem;
-  gap: 1rem;
-}
-
-/* nút tạo mới */
-.btn-create {
-  padding: 4px 10px;
-  background: #3b5998;
-  color: #fff;
-  border: 1px solid #2d4373;
-  border-radius: 0;
-  margin-left: auto;      /* đẩy sang phải nếu toolbar row */
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn-create:hover {
-  background: #2d4373;
-}
-
-/* input tìm kiếm */
-.search-input {
-  width: 100%;
-  padding: 5px;
-  font-size: 13px;
-  border: 1px solid #999;
-  background: #fff;
-  color: #000;
-}
-.search-input:focus {
-  border: 1px solid #2d4373;
-  outline: none;
-}
-
-/* ================== Table container ================== */
-.table-container {
-  width: 100%;
-  overflow-x: auto;    /* scroll ngang nếu table quá rộng */
-  border: 1px solid #ccc;
-}
-
-/* ================== Table ================== */
-.session-table {
-  width: 100%;
-  border-collapse: collapse; /* tránh khoảng cách giữa các cell */
-  font-size: 13px;
-  background: #fff;
-}
-
-.session-table th,
-.session-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #ccc;
-  border-right: 1px solid #ccc;
-  color: #555;
-}
-
-/* header table */
-.session-table th {
-  font-weight: 600;
-  text-align: left;
-  color: #333;
-  background: #fff;
-}
-
-/* loại bỏ border phải ở cell cuối */
-.session-table th:last-child,
-.session-table td:last-child {
-  border-right: none;
-}
-
-/* column widths & alignment */
-.session-table th.created,
-.session-table td.created { width: 15%; text-align: center; }
-.session-table th.session,
-.session-table td.session { width: 25%; text-align: left; }
-.session-table th.images,
-.session-table td.images { width: 15%; text-align: center; }
-.session-table th.note,
-.session-table td.note { width: 25%; text-align: left; }
-.session-table th.actions,
-.session-table td.actions { width: 20%; text-align: center; }
-
-/* hover row */
-.session-table tbody tr:hover,
-.table-row:hover {
-  background-color: #e6f2ff;
-  cursor: pointer;
-}
-
-/* hover các cell cùng row */
-.table-row:hover td {
-  background-color: #e6f2ff;
-}
-
-/* no data */
-td.no-data {
-  text-align: center;
-  font-style: italic;
-  color: #888;
-  padding: 15px 0;
-  border-right: none;
-}
-
-/* ================== Action buttons ================== */
-.btn-detail {
-  padding: 3px 6px;
-  font-size: 12px;
-  background: #3b5998;
-  color: #fff;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-}
-.btn-detail:hover { background: #2d4373; }
-
-/* focus/active cho các button */
-.btn-create:focus,
-.btn-create:active,
-.btn-detail:focus,
-.btn-detail:active {
-  outline: none;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-/* ================== Modal ================== */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
   justify-content: center;
-  align-items: center;
-  z-index: 9999;
+  gap: var(--spacing-xs, 0.35rem);
 }
 
-.modal-box {
-  background: #fff;
-  padding: 20px;
-  border-radius: 0px;
-  width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 13px;
+.sessions-page__table .note-cell {
+  white-space: normal;
+  max-width: 240px;
 }
 
-.modal-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-bottom: 0.2rem;
-  text-align: center;
-}
-
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.modal-input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #ccc;
-  border-radius: 0px;
-  background: #ffffff;
-  color: #000;
-}
-
-.modal-input.readonly {
-  background: #e4e4e4;
-  color: #000000;
-}
-
-/* ================== Modal actions ================== */
-.modal-actions {
+.sessions-page__pagination {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-}
-.btn {
-  padding: 5px 10px;
-  border-radius: 0px;
-  cursor: pointer;
-  font-size: 13px;
+  align-items: center;
+  gap: var(--spacing-sm, 0.5rem);
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #475569);
+  margin-top: var(--spacing-sm, 0.5rem);
 }
 
-.btn.btn-cancel {
-  background: #e0e0e0;
-  border: none;
-}
-
-.btn.btn-submit {
-  background: #3B5998;
-  color: white;
-  border: none;
-}
-
-.btn.btn-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn.btn-delete {
-  background: #DD0000;
-  color: white;
-  border: none;
-}
-
-/* ================== Responsive ================== */
-@media (max-width: 1200px) {
-  .content-body {
-    max-width: 1000px;
-    padding: 0 1rem;
-  }
-}
-
-@media (max-width: 992px) {
-  .sidebar-content {
-    width: 200px;
-  }
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .search-input {
-    width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .SessionPage {
-    flex-direction: column;
-  }
-  .sidebar-content {
-    width: 100%;
-    height: auto;
-    order: -1;
-  }
-  .main-content {
-    width: 100%;
-  }
-  .session-table th,
-  .session-table td {
-    font-size: 12px;
-    padding: 6px;
-  }
-}
-
-@media (max-width: 576px) {
-  .toolbar {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .btn-create {
-    font-size: 12px;
-    padding: 4px 8px;
-  }
-  .search-input {
-    font-size: 12px;
-    padding: 4px 6px;
-  }
-  .modal-box {
-    width: 95%;
-  }
-  .session-table th,
-  .session-table td {
-    font-size: 11px;
-  }
+.sessions-page__pagination .page-info {
+  font-weight: 600;
+  color: var(--color-primary, #2563eb);
 }

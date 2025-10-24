@@ -5,78 +5,25 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useParams } from "react-router-dom";
 import Sidebar from "../components/sidebar";
 import Button from "../components/button";
 import "../styles/ImageListPage.css";
-import { inspectionService } from "../../infrastructure/http/auth/inspectionService";
 import { withApiBase } from "../../shared/config/env";
+import type {
+  Assessment,
+  BBox,
+  ImageItem,
+  InspectionDetail,
+  ManualAssessmentPayload,
+} from "../../domain/inspections/models";
 
 const PAGE_SIZE = 24;
-const CACHE_BUST = () => Date.now().toString();
-const ANALYZE_CONCURRENCY = 4;
-const RESULTS_POLL_INTERVAL = 7000;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.1;
 
 // ====== Helper Types & Utilities ====================================================
 
-/**
- * Bounding box information returned by the API.
- */
-export type BBox = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  type?: string;
-  confidence?: number;
-  damage_grade?: number;
-};
-
-/**
- * Assessment entry per image.
- */
-export type Assessment = {
-  damage_grade?: number;
-  ai_bounding_boxes: BBox[];
-  ai_damage_types?: string[];
-  ai_confidence: number;
-  grade_label?: string;
-  grade_color?: string;
-};
-
-/**
- * Image item belonging to an inspection.
- */
-export type ImageItem = {
-  id: string;
-  file_name: string;
-  blade: string;
-  surface: string;
-  status: string;
-  file_url: string;
-  assessments?: Assessment[];
-};
-
-/**
- * Inspection detail response shape.
- */
-export type InspectionDetail = {
-  inspection: {
-    id: string;
-    turbine_id: string;
-    status: string;
-    total_images: number;
-    processed_images: number;
-  };
-  images: ImageItem[];
-};
-
-/**
- * Results item returned by the /results endpoint.
- */
 export type ResultsItem = { image_id: string; assessments: Assessment[] };
 
 type DrawnBox = {
@@ -110,27 +57,6 @@ const getColorByType = (type?: string) => {
   }
 };
 
-const GRADE_COLOR_CLASS_MAP: Record<string, string> = {
-  "#22c55e": "lv-1",
-  "#16a34a": "lv-2",
-  "#facc15": "lv-3",
-  "#f97316": "lv-4",
-  "#ef4444": "lv-5",
-  "#8b5cf6": "default",
-};
-
-const resolveGradeTone = (color?: string, type?: string) => {
-  const normalizedColor = (color || "").trim().toLowerCase();
-  if (normalizedColor && GRADE_COLOR_CLASS_MAP[normalizedColor]) {
-    return GRADE_COLOR_CLASS_MAP[normalizedColor];
-  }
-  const normalizedType = (type || "").trim().toLowerCase();
-  if (normalizedType.startsWith("lv_")) {
-    return normalizedType.replace("lv_", "lv-");
-  }
-  return "default";
-};
-
 /**
  * Determines whether an image already has analysis.
  */
@@ -140,9 +66,70 @@ const hasAIResult = (img: ImageItem) =>
 /**
  * Determines whether the supplied status marks an image as analysed.
  */
-const isAnalyzed = (status?: string) => {
-  const s = (status || "").toLowerCase();
-  return ["analyzed", "processed", "done", "completed", "ready"].includes(s);
+const CHECKED_STATUSES = new Set([
+  "checked",
+  "completed",
+  "done",
+  "analysis complete",
+  "analyzed",
+  "processed",
+  "ready",
+]);
+
+const UNCHECKED_STATUSES = new Set([
+  "unchecked",
+  "uncheck",
+  "pending",
+  "processing",
+  "uploaded",
+  "new",
+  "created",
+]);
+
+const toChecklistStatus = (status?: string, hasResult = false): "checked" | "unchecked" => {
+  const s = (status || "").trim().toLowerCase();
+  if (CHECKED_STATUSES.has(s)) return "checked";
+  if (UNCHECKED_STATUSES.has(s)) return "unchecked";
+  return hasResult ? "checked" : "unchecked";
+};
+
+const isAnalyzed = (status?: string) => toChecklistStatus(status) === "checked";
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString();
+};
+
+type Props = {
+  turbineId?: string;
+  turbineName?: string;
+  inspectionId?: string;
+  detail: InspectionDetail | null;
+  loadingDetail: boolean;
+  isAnalyzingAll: boolean;
+  overallProgress: number;
+  perImageAnalyzing: Record<string, boolean>;
+  imageVersionBump: Record<string, number>;
+  analysisBannerVisible: boolean;
+  getImageStreamUrl: (imageId: string, bump?: number) => string;
+  deletingImageIds?: Record<string, boolean>;
+  onAnalyzeAll: () => Promise<void> | void;
+  onAnalyzeImage: (imageId: string) => Promise<void> | void;
+  onDeleteImages: (imageIds: string[]) => Promise<void> | void;
+  onDeleteImage: (imageId: string) => Promise<void> | void;
+  onUpdateManualAssessment: (
+    imageId: string,
+    payload: ManualAssessmentPayload,
+  ) => Promise<void> | void;
+  onUpdateBoundingBox: (
+    imageId: string,
+    boxIndex: number,
+    updates: Partial<BBox>,
+  ) => Promise<void> | void;
+  onRefreshDetail?: () => void;
+  onRefreshResults?: () => void;
 };
 
 /**
@@ -159,19 +146,6 @@ const hasSevereDamage = (img: ImageItem) =>
 /**
  * Generates a compact signature for result payloads to avoid redundant state updates.
  */
-const formatResultsSignature = (items?: ResultsItem[]) => {
-  if (!items) return null;
-  return JSON.stringify(
-    items.map((item) => ({
-      id: item.image_id,
-      assessments: (item.assessments || []).map((assessment) => ({
-        confidence: assessment.ai_confidence ?? 0,
-        boxes: assessment.ai_bounding_boxes?.length ?? 0,
-      })),
-    })),
-  );
-};
-
 /**
  * Triggers a JSON download for arbitrary data.
  */
@@ -203,22 +177,28 @@ function useDebounced<T>(value: T, delay = 300) {
 
 // ====== Component ===================================================================
 
-const InspectionDetailPage: React.FC = () => {
-  const { turbineId, inspectionId } =
-    useParams<{ turbineId: string; inspectionId: string }>();
-
-  // ----- State ----------------------------------------------------------------------
-  const [detail, setDetail] = useState<InspectionDetail | null>(null);
-
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [isAnalyzingAll, setIsAnalyzingAll] = useState(false);
-  const [overallProgress, setOverallProgress] = useState<number>(0);
-  const [perImageAnalyzing, setPerImageAnalyzing] = useState<
-    Record<string, boolean>
-  >({});
-  const [imageVersionBump, setImageVersionBump] = useState<
-    Record<string, number>
-  >({});
+const InspectionDetailPage: React.FC<Props> = ({
+  turbineId,
+  turbineName,
+  inspectionId,
+  detail,
+  loadingDetail,
+  isAnalyzingAll,
+  overallProgress,
+  perImageAnalyzing,
+  imageVersionBump,
+  analysisBannerVisible,
+  getImageStreamUrl,
+  deletingImageIds,
+  onAnalyzeAll,
+  onAnalyzeImage,
+  onDeleteImages,
+  onDeleteImage,
+  onUpdateManualAssessment,
+  onUpdateBoundingBox,
+  onRefreshDetail,
+  onRefreshResults,
+}) => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounced(searchTerm, 300);
@@ -230,7 +210,6 @@ const InspectionDetailPage: React.FC = () => {
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
   const [bboxData, setBboxData] = useState<BBox[] | null>(null);
-  const [assessmentInfo, setAssessmentInfo] = useState<Assessment | null>(null);
   const [loadingBbox, setLoadingBbox] = useState(false);
   const [selectedBox, setSelectedBox] = useState<BBox | null>(null);
   const [hoveredBox, setHoveredBox] = useState<BBox | null>(null);
@@ -238,7 +217,18 @@ const InspectionDetailPage: React.FC = () => {
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [imageLoading, setImageLoading] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [analysisBannerVisible, setAnalysisBannerVisible] = useState(false);
+  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(() => new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [manualDescription, setManualDescription] = useState("");
+  const [boxEdit, setBoxEdit] = useState<{ type: string; confidence: string }>({
+    type: "",
+    confidence: "",
+  });
+  const [boxEditIndex, setBoxEditIndex] = useState<number | null>(null);
+  const [savingManual, setSavingManual] = useState(false);
+  const [savingBox, setSavingBox] = useState(false);
+  const [manualFeedback, setManualFeedback] = useState<string | null>(null);
+  const [boxFeedback, setBoxFeedback] = useState<string | null>(null);
 
   // ----- Refs -----------------------------------------------------------------------
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -249,27 +239,39 @@ const InspectionDetailPage: React.FC = () => {
     offsetY: 0,
   });
   const scrollYBeforeModal = useRef<number>(0);
-  const analyzeAllTimeoutRef = useRef<number | null>(null);
-  const analysisBannerTimeoutRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestBoxesRef = useRef<DrawnBox[]>([]);
-  const resultsSignatureRef = useRef<string | null>(null);
-  const cacheBustRef = useRef<string>(CACHE_BUST());
+  const modalAssessmentsSignatureRef = useRef<string | null>(null);
 
   // ----- Derived Data ---------------------------------------------------------------
+  const checkedSummary = detail?.inspection.checked_summary;
   const analyzedCount = useMemo(
-    () => (detail ? detail.images.filter(hasAIResult).length : 0),
-    [detail],
-  );
-  const uncheckedCount = detail ? detail.images.length - analyzedCount : 0;
-  const totalImages = detail?.images.length ?? 0;
-  const allImagesAnalyzed = useMemo(
     () =>
-      detail
-        ? detail.images.every((img) => hasAIResult(img) || isAnalyzed(img.status))
-        : false,
-    [detail],
+      checkedSummary?.checked ??
+      detail?.inspection.processed_images ??
+      (detail?.images.filter((img) => hasAIResult(img) || isAnalyzed(img.status)).length ??
+        0),
+    [checkedSummary, detail],
   );
+  const uncheckedCount = useMemo(
+    () => checkedSummary?.unchecked ?? (detail ? detail.images.length - analyzedCount : 0),
+    [checkedSummary, detail, analyzedCount],
+  );
+  const totalImages = useMemo(
+    () => checkedSummary?.total ?? detail?.inspection.total_images ?? detail?.images.length ?? 0,
+    [checkedSummary?.total, detail?.images.length, detail?.inspection.total_images],
+  );
+  const turbineLabel = useMemo(
+    () => (turbineName?.trim() ? turbineName.trim() : turbineId || "Unknown"),
+    [turbineId, turbineName],
+  );
+  const allImagesAnalyzed = useMemo(() => {
+    if (checkedSummary) {
+      return checkedSummary.total > 0 && checkedSummary.checked === checkedSummary.total;
+    }
+    if (!detail) return false;
+    return detail.images.every((img) => hasAIResult(img) || isAnalyzed(img.status));
+  }, [checkedSummary, detail]);
 
   const filteredImages = useMemo(() => {
     if (!detail) return [];
@@ -306,6 +308,25 @@ const InspectionDetailPage: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!detail) {
+      setSelectedImageIds(new Set());
+      return;
+    }
+    setSelectedImageIds((prev) => {
+      const next = new Set<string>();
+      detail.images.forEach((img) => {
+        if (prev.has(img.id)) {
+          next.add(img.id);
+        }
+      });
+      if (next.size === prev.size && Array.from(next).every((id) => prev.has(id))) {
+        return prev;
+      }
+      return next;
+    });
+  }, [detail]);
+
+  useEffect(() => {
     setPage(1);
   }, [debouncedSearch, bladeFilter, listGradeFilter]);
 
@@ -315,10 +336,18 @@ const InspectionDetailPage: React.FC = () => {
     }
     if (!detail) return null;
     if (!allImagesAnalyzed) {
-      return `Analyzed ${analyzedCount}/${detail.images.length}`;
+      const total = totalImages || detail.images.length;
+      return `Checked ${analyzedCount}/${total}`;
     }
     return null;
-  }, [isAnalyzingAll, overallProgress, detail, allImagesAnalyzed, analyzedCount]);
+  }, [
+    allImagesAnalyzed,
+    analyzedCount,
+    detail,
+    isAnalyzingAll,
+    overallProgress,
+    totalImages,
+  ]);
 
   const progressPercent = useMemo(
     () => Math.round(Math.min(100, Math.max(0, overallProgress))),
@@ -340,6 +369,13 @@ const InspectionDetailPage: React.FC = () => {
       ? "crosshair"
       : "default";
 
+  const formattedBoxConfidence = useMemo(() => {
+    if (!boxEdit.confidence) return "N/A";
+    const parsed = Number(boxEdit.confidence);
+    if (Number.isNaN(parsed)) return boxEdit.confidence;
+    return `${(parsed * 100).toFixed(1)}%`;
+  }, [boxEdit.confidence]);
+
   // ----- Helper Callbacks -----------------------------------------------------------
   const memoizedBuildUrl = useCallback((path: string) => {
     if (/^https?:\/\//.test(path)) return path;
@@ -347,17 +383,9 @@ const InspectionDetailPage: React.FC = () => {
     return withApiBase(normalized);
   }, []);
 
-  const refreshCacheBust = useCallback(() => {
-    cacheBustRef.current = CACHE_BUST();
-  }, []);
-
-  const memoizedGetImageStreamUrl = useCallback(
-    (id: string, bump?: number) =>
-      inspectionService.getImageStreamUrl(id, {
-        cacheKey: cacheBustRef.current,
-        bump,
-      }),
-    [],
+  const buildImageStreamUrl = useCallback(
+    (id: string, bump?: number) => getImageStreamUrl(id, bump),
+    [getImageStreamUrl],
   );
 
   const downloadBoundingBoxes = useCallback(() => {
@@ -375,165 +403,86 @@ const InspectionDetailPage: React.FC = () => {
     );
   }, [detail, inspectionId]);
 
-  // ----- API Helpers ----------------------------------------------------------------
+  const selectedCount = selectedImageIds.size;
+  const visibleCount = filteredImages.length;
+  const hasVisibleImages = visibleCount > 0;
+  const isDeletingSelection = Array.from(selectedImageIds).some(
+    (id) => deletingImageIds?.[id],
+  );
 
-  const fetchInspectionDetail = useCallback(async (id: string) => {
-    setLoadingDetail(true);
-    try {
-      const result = await inspectionService.detail(id);
-      if (result.ok) {
-        setDetail(result.data as InspectionDetail);
-      } else {
-        console.error("Failed to load inspection:", result.message);
-      }
-    } catch (err) {
-      console.error("Failed to load inspection:", err);
-    } finally {
-      setLoadingDetail(false);
+  const toggleImageSelection = useCallback((imageId: string) => {
+    if (!imageId) return;
+    if (!selectionMode) {
+      setSelectionMode(true);
+      setSelectedImageIds(new Set([imageId]));
+      return;
     }
+    setSelectedImageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) {
+        next.delete(imageId);
+      } else {
+        next.add(imageId);
+      }
+      return next;
+    });
+  }, [selectionMode]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedImageIds(new Set());
   }, []);
 
-  const fetchResultsOnce = useCallback(
-    async (id: string) => {
-      try {
-        const result = await inspectionService.results(id);
-        if (!result.ok) return;
+  const handleEnterSelectionMode = useCallback(() => {
+    setSelectionMode(true);
+    setSelectedImageIds(new Set());
+  }, []);
 
-        const images = Array.isArray(result.data?.images) ? result.data.images : [];
-        const signature = formatResultsSignature(images);
-        if (signature && signature === resultsSignatureRef.current) {
-          return;
-        }
-        resultsSignatureRef.current = signature;
+  const handleExitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedImageIds(new Set());
+  }, []);
 
-        const resultMap = new Map<string, ResultsItem>();
-        for (const entry of images as ResultsItem[]) {
-          resultMap.set(entry.image_id, entry);
-        }
-
-        setDetail((prev) => {
-          if (!prev) return prev;
-          let didChange = false;
-          const updatedImages = prev.images.map((img) => {
-            const result = resultMap.get(img.id);
-            if (!result) return img;
-            const hasBoxes = result.assessments?.some(
-              (assessment) =>
-                (assessment.ai_bounding_boxes?.length || 0) > 0,
-            );
-            if (!hasBoxes) {
-              if (result.assessments && result.assessments.length > 0) {
-                didChange = true;
-                return {
-                  ...img,
-                  assessments: result.assessments,
-                };
-              }
-              return img;
-            }
-            didChange = true;
-            return {
-              ...img,
-              assessments: result.assessments,
-              status: "analyzed",
-            };
-          });
-
-          if (!didChange) return prev;
-
-          return {
-            ...prev,
-            images: updatedImages,
-          };
-        });
-      } catch (err) {
-        console.error("Failed to fetch results:", err);
-      }
-    },
-    [],
-  );
-
-  // ----- Upload & Analysis ----------------------------------------------------------
-
-  const analyzeOneImage = useCallback(
-    async (imageId: string) => {
-      setPerImageAnalyzing((prev) => ({ ...prev, [imageId]: true }));
-      try {
-        const result = await inspectionService.analyzeImage(imageId);
-        if (result.ok) {
-          setDetail((prev) => {
-            if (!prev) return prev;
-            const updatedImages = prev.images.map((img) => {
-              if (img.id !== imageId) return img;
-              const newAssessments: Assessment[] = (
-                result.data?.damage_assessments || []
-              ).map((assessment: any) => ({
-                ai_confidence: assessment.ai_confidence ?? 0,
-                ai_bounding_boxes: assessment.ai_bounding_boxes ?? [],
-              }));
-              return {
-                ...img,
-                assessments: newAssessments,
-                status: "analyzed",
-              };
-            });
-            return {
-              ...prev,
-              images: updatedImages,
-            };
-          });
-
-          refreshCacheBust();
-          setImageVersionBump((prev) => ({
-            ...prev,
-            [imageId]: (prev[imageId] || 0) + 1,
-          }));
-        } else {
-          console.error("Analyze failed:", result.message);
-        }
-      } catch (err) {
-        console.error("Analyze failed:", err);
-      } finally {
-        setPerImageAnalyzing((prev) => ({ ...prev, [imageId]: false }));
-      }
-    },
-    [refreshCacheBust],
-  );
-
-  const analyzeAllImages = useCallback(async () => {
-    if (!detail) return;
-    setIsAnalyzingAll(true);
-    setOverallProgress(0);
-    try {
-      const imgs = detail.images;
-      const total = imgs.length;
-      let done = 0;
-
-      if (total === 0) {
-        setOverallProgress(100);
-        return;
-      }
-
-      for (let i = 0; i < imgs.length; i += ANALYZE_CONCURRENCY) {
-        const chunk = imgs.slice(i, i + ANALYZE_CONCURRENCY);
-        await Promise.all(chunk.map((img) => analyzeOneImage(img.id)));
-        done += chunk.length;
-        const progress = Math.min(100, Math.round((done / total) * 100));
-        setOverallProgress(progress);
-      }
-    } finally {
-      if (inspectionId) {
-        await fetchResultsOnce(inspectionId);
-      }
-      if (analyzeAllTimeoutRef.current !== null) {
-        window.clearTimeout(analyzeAllTimeoutRef.current);
-      }
-      analyzeAllTimeoutRef.current = window.setTimeout(() => {
-        setIsAnalyzingAll(false);
-        analyzeAllTimeoutRef.current = null;
-      }, 2000);
+  const handleSelectAllVisible = useCallback(() => {
+    if (!selectionMode) {
+      setSelectionMode(true);
     }
-  }, [detail, analyzeOneImage, inspectionId, fetchResultsOnce]);
+    setSelectedImageIds((prev) => {
+      const visibleIds = filteredImages.map((img) => img.id);
+      if (visibleIds.length === 0) return new Set();
+      const allSelected = visibleIds.every((id) => prev.has(id));
+      if (allSelected) {
+        return new Set();
+      }
+      return new Set(visibleIds);
+    });
+  }, [filteredImages, selectionMode]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedImageIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedImageIds.size} selected image(s)?`)) return;
+    onDeleteImages(Array.from(selectedImageIds));
+    clearSelection();
+  }, [selectedImageIds, onDeleteImages, clearSelection]);
+
+  // ----- API Helpers ----------------------------------------------------------------
+
+  const handleAnalyzeOneImage = useCallback(
+    (imageId: string) => {
+      if (!imageId) return;
+      onAnalyzeImage(imageId);
+    },
+    [onAnalyzeImage],
+  );
+
+  const handleRefresh = useCallback(() => {
+    onRefreshDetail?.();
+    onRefreshResults?.();
+  }, [onRefreshDetail, onRefreshResults]);
+
+  const handleAnalyzeAllImages = useCallback(() => {
+    if (!detail) return;
+    onAnalyzeAll();
+  }, [detail, onAnalyzeAll]);
 
   // ----- Modal Logic ----------------------------------------------------------------
 
@@ -579,6 +528,9 @@ const InspectionDetailPage: React.FC = () => {
       const idx = filteredImages.findIndex((img) => img.id === imageId);
       if (idx === -1) return;
       const img = filteredImages[idx];
+      const firstAssessment = Array.isArray(img.assessments)
+        ? img.assessments[0]
+        : undefined;
       scrollYBeforeModal.current = window.scrollY;
 
       if (imageBlobUrl) {
@@ -588,7 +540,6 @@ const InspectionDetailPage: React.FC = () => {
       setModalIndex(idx);
       setModalOpen(true);
       setBboxData(null);
-      setAssessmentInfo(null);
       setSelectedBox(null);
       setHoveredBox(null);
       setShowBBox(true);
@@ -596,47 +547,28 @@ const InspectionDetailPage: React.FC = () => {
       setLoadingBbox(true);
       setZoom(1);
       setImgMetrics({ renderedWidth: 0, renderedHeight: 0, offsetX: 0, offsetY: 0 });
+      setBoxEditIndex(null);
+      setBoxEdit({ type: "", confidence: "" });
+      setManualDescription(firstAssessment?.description ?? "");
+      setManualFeedback(null);
+      setBoxFeedback(null);
+      modalAssessmentsSignatureRef.current = null;
 
       try {
         const bump = imageVersionBump[img.id] || 0;
         const blobUrl = await fetchImageBlob(
-          memoizedGetImageStreamUrl(img.id, bump),
+          buildImageStreamUrl(img.id, bump),
         );
         setImageBlobUrl(blobUrl);
       } catch (err) {
         console.error(err);
       }
 
-      if (isAnalyzed(img.status) && Array.isArray(img.assessments)) {
+      if (Array.isArray(img.assessments)) {
         const allBoxes = img.assessments.flatMap(
           (assessment) => assessment.ai_bounding_boxes ?? [],
         );
-        const mergedTypes = Array.from(
-          new Set(
-            img.assessments.flatMap(
-              (assessment) => assessment.ai_damage_types ?? [],
-            ),
-          ),
-        );
-        const avgConfidence = img.assessments.length
-          ? img.assessments.reduce(
-              (acc, assessment) => acc + (assessment.ai_confidence ?? 0),
-              0,
-            ) / img.assessments.length
-          : 0;
-
         setBboxData(allBoxes);
-        if (img.assessments.length > 0) {
-          const primary = img.assessments[0];
-          setAssessmentInfo({
-            ...primary,
-            ai_bounding_boxes: allBoxes,
-            ai_damage_types: mergedTypes,
-            ai_confidence: avgConfidence,
-          });
-        } else {
-          setAssessmentInfo(null);
-        }
       }
       setLoadingBbox(false);
     },
@@ -646,7 +578,7 @@ const InspectionDetailPage: React.FC = () => {
       imageBlobUrl,
       imageVersionBump,
       fetchImageBlob,
-      memoizedGetImageStreamUrl,
+      buildImageStreamUrl,
     ],
   );
 
@@ -656,18 +588,133 @@ const InspectionDetailPage: React.FC = () => {
     setModalIndex(null);
     setImageBlobUrl(null);
     setBboxData(null);
-    setAssessmentInfo(null);
     setSelectedBox(null);
     setHoveredBox(null);
     setGradeFilter("all");
     setZoom(1);
     setImgMetrics({ renderedWidth: 0, renderedHeight: 0, offsetX: 0, offsetY: 0 });
     setImageLoading(false);
+    setManualFeedback(null);
+    setBoxFeedback(null);
+    modalAssessmentsSignatureRef.current = null;
     window.scrollTo({
       top: scrollYBeforeModal.current,
       behavior: "instant" as ScrollBehavior,
     });
   }, [imageBlobUrl]);
+
+  const handleBoxTypeChange = useCallback((value: string) => {
+    setBoxEdit((prev) => ({
+      ...prev,
+      type: value,
+    }));
+  }, []);
+
+  const handleSaveManualDescription = useCallback(async () => {
+    if (!modalOpen || modalIndex === null) return;
+    const img = filteredImages[modalIndex];
+    if (!img) return;
+    setSavingManual(true);
+    try {
+      await Promise.resolve(
+        onUpdateManualAssessment(img.id, {
+          description: manualDescription.trim() || undefined,
+          ai_bounding_boxes: bboxData ?? undefined,
+        }),
+      );
+      setManualFeedback(`Saved ${new Date().toLocaleTimeString()}`);
+    } catch (error) {
+      console.error("Save manual assessment failed:", error);
+      setManualFeedback("Save failed");
+    } finally {
+      setSavingManual(false);
+    }
+  }, [
+    bboxData,
+    filteredImages,
+    manualDescription,
+    modalIndex,
+    modalOpen,
+    onUpdateManualAssessment,
+  ]);
+
+  const handleSaveBoundingBox = useCallback(async () => {
+    if (!modalOpen || modalIndex === null || boxEditIndex === null) return;
+    const img = filteredImages[modalIndex];
+    if (!img || !bboxData) return;
+
+    const trimmedType = boxEdit.type.trim();
+    if (!trimmedType) {
+      alert("Class cannot be empty");
+      return;
+    }
+
+    const normalizedType = trimmedType.toUpperCase();
+    const currentBox = bboxData[boxEditIndex];
+    const currentType = currentBox?.type ?? "";
+    if (normalizedType === currentType) {
+      alert("No changes to save");
+      return;
+    }
+
+    const updates: Partial<BBox> = { type: normalizedType };
+
+    setSavingBox(true);
+    let nextSelected: BBox | null = null;
+    try {
+      await Promise.resolve(onUpdateBoundingBox(img.id, boxEditIndex, updates));
+      setBoxFeedback(`Updated ${new Date().toLocaleTimeString()}`);
+      setBboxData((prev) => {
+        if (!prev) return prev;
+        const next = prev.map((box, idx) => {
+          if (idx === boxEditIndex) {
+            const merged = { ...box, ...updates };
+            nextSelected = merged;
+            return merged;
+          }
+          return box;
+        });
+        return next;
+      });
+    } catch (error) {
+      console.error("Update bounding box failed:", error);
+      setBoxFeedback("Update failed");
+    } finally {
+      setSavingBox(false);
+      if (nextSelected) {
+        setSelectedBox(nextSelected);
+      }
+    }
+  }, [
+    bboxData,
+    boxEdit.type,
+    boxEditIndex,
+    filteredImages,
+    modalIndex,
+    modalOpen,
+    onUpdateBoundingBox,
+  ]);
+
+  const handleDeleteSingle = useCallback(
+    async (imageId: string) => {
+      if (!imageId) return;
+      if (!window.confirm("Delete this image?")) return;
+      await Promise.resolve(onDeleteImage(imageId));
+      setSelectedImageIds((prev) => {
+        if (!prev.has(imageId)) return prev;
+        const next = new Set(prev);
+        next.delete(imageId);
+        return next;
+      });
+      if (modalOpen && modalIndex !== null) {
+        const active = filteredImages[modalIndex];
+        if (active?.id === imageId) {
+          closeModal();
+        }
+      }
+    },
+    [closeModal, filteredImages, modalIndex, modalOpen, onDeleteImage],
+  );
 
   const handleCanvasMouseMove = useCallback(
     (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -771,27 +818,6 @@ const InspectionDetailPage: React.FC = () => {
     return classes.join(" ");
   }, [drawnBoxes.length, canvasPointer]);
 
-  // ----- Effects --------------------------------------------------------------------
-
-  useEffect(() => {
-    if (!inspectionId) {
-      setDetail(null);
-      return;
-    }
-    setDetail(null);
-    fetchInspectionDetail(inspectionId);
-    fetchResultsOnce(inspectionId);
-  }, [inspectionId, fetchInspectionDetail, fetchResultsOnce]);
-
-  useEffect(() => {
-    if (!detail || totalImages === 0 || !inspectionId) return;
-    if (allImagesAnalyzed) return;
-    const intervalId = window.setInterval(() => {
-      fetchResultsOnce(inspectionId);
-    }, RESULTS_POLL_INTERVAL);
-    return () => window.clearInterval(intervalId);
-  }, [detail, totalImages, inspectionId, allImagesAnalyzed, fetchResultsOnce]);
-
   useEffect(() => {
     if (!imageBlobUrl) return;
     refreshImageMetrics();
@@ -821,6 +847,68 @@ const InspectionDetailPage: React.FC = () => {
   }, [selectedBox, drawnBoxes]);
 
   useEffect(() => {
+    if (!bboxData || !selectedBox) {
+      setBoxEditIndex(null);
+      setBoxEdit({ type: "", confidence: "" });
+      return;
+    }
+    const matchIndex = bboxData.findIndex((entry) => entry === selectedBox);
+    if (matchIndex === -1) {
+      setBoxEditIndex(null);
+      setBoxEdit({ type: "", confidence: "" });
+      return;
+    }
+    setBoxEditIndex(matchIndex);
+    const { type, confidence } = selectedBox;
+    setBoxEdit({
+      type: type ?? "",
+      confidence:
+        confidence != null && !Number.isNaN(confidence) ? String(confidence) : "",
+    });
+  }, [bboxData, selectedBox]);
+
+  useEffect(() => {
+    setManualFeedback(null);
+  }, [manualDescription]);
+
+  useEffect(() => {
+    setBoxFeedback(null);
+  }, [boxEdit.type, boxEditIndex]);
+
+  useEffect(() => {
+    if (selectionMode && visibleCount === 0) {
+      setSelectionMode(false);
+      setSelectedImageIds(new Set());
+    }
+  }, [selectionMode, visibleCount]);
+
+  useEffect(() => {
+    if (!modalOpen || modalIndex === null) return;
+    const image = filteredImages[modalIndex];
+    if (!image) return;
+    const assessments = image.assessments ?? [];
+    const signature = JSON.stringify(
+      assessments.map((assessment) => ({
+        desc: assessment.description ?? "",
+        boxes: (assessment.ai_bounding_boxes ?? []).map((box) => [
+          box.x,
+          box.y,
+          box.width,
+          box.height,
+          box.type ?? "",
+          box.confidence ?? 0,
+        ]),
+      })),
+    );
+    if (signature === modalAssessmentsSignatureRef.current) return;
+    modalAssessmentsSignatureRef.current = signature;
+    const allBoxes = assessments.flatMap(
+      (assessment) => assessment.ai_bounding_boxes ?? [],
+    );
+    setBboxData(allBoxes);
+  }, [filteredImages, modalIndex, modalOpen]);
+
+  useEffect(() => {
     if (imageBlobUrl) {
       return () => {
         URL.revokeObjectURL(imageBlobUrl);
@@ -828,31 +916,6 @@ const InspectionDetailPage: React.FC = () => {
     }
     return undefined;
   }, [imageBlobUrl]);
-
-  useEffect(() => {
-    if (!detail || totalImages === 0) return;
-    if (allImagesAnalyzed) {
-      setAnalysisBannerVisible(true);
-      if (analysisBannerTimeoutRef.current !== null) {
-        window.clearTimeout(analysisBannerTimeoutRef.current);
-      }
-      analysisBannerTimeoutRef.current = window.setTimeout(() => {
-        setAnalysisBannerVisible(false);
-        analysisBannerTimeoutRef.current = null;
-      }, 4000);
-    }
-  }, [detail, totalImages, allImagesAnalyzed]);
-
-  useEffect(() => {
-    return () => {
-      if (analyzeAllTimeoutRef.current !== null) {
-        window.clearTimeout(analyzeAllTimeoutRef.current);
-      }
-      if (analysisBannerTimeoutRef.current !== null) {
-        window.clearTimeout(analysisBannerTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (!showBBox || !bboxData || bboxData.length === 0) {
@@ -959,8 +1022,16 @@ const InspectionDetailPage: React.FC = () => {
     );
   };
 
+  const pageClassName = useMemo(
+    () =>
+      ["ImageListPage", selectionMode ? "ImageListPage--selecting" : ""]
+        .filter(Boolean)
+        .join(" "),
+    [selectionMode],
+  );
+
   return (
-    <div className="ImageListPage">
+    <div className={pageClassName}>
       <aside className="sidebar-content">
         <Sidebar />
       </aside>
@@ -968,7 +1039,7 @@ const InspectionDetailPage: React.FC = () => {
       <main className="main-content">
         <div className="content-body">
           <div className="header-row">
-            <h3>Inspection - Turbine: {turbineId}</h3>
+            <h3>Inspection - Turbine: {turbineLabel}</h3>
             <div className="search-wrap">
               <input
                 className="search-input"
@@ -980,23 +1051,76 @@ const InspectionDetailPage: React.FC = () => {
           </div>
           {analysisBannerVisible && (
             <div className="inspection-alert inspection-alert--success">
-              Done. Analysis complete
+              <span className="inspection-alert__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M8.333 13.167 5.5 10.333l-1 1 3.833 3.834 8-8-1-1-7 7Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+              <div className="inspection-alert__content">
+                <span className="inspection-alert__title">Analysis finished</span>
+                <span className="inspection-alert__subtitle">
+                  All findings are ready for review.
+                </span>
+              </div>
             </div>
           )}
 
           {renderStatusBanner()}
 
+          {detail?.inspection &&
+            (() => {
+              const inspection = detail.inspection;
+              return (
+                <div className="inspection-meta">
+                  <div className="inspection-meta__item">
+                    <span>Inspection</span>
+                    <b>{inspection.inspection_code ?? inspection.id}</b>
+                  </div>
+                  <div className="inspection-meta__item">
+                    <span>Status</span>
+                    {(() => {
+                      const raw = inspection.status || "Unknown";
+                      const normalized =
+                        raw.toLowerCase().replace(/\s+/g, "-") || "unknown";
+                      return (
+                        <span className={`status-badge status-${normalized}`}>
+                        {raw}
+                      </span>
+                    );
+                  })()}
+                </div>
+                  <div className="inspection-meta__item">
+                    <span>Created</span>
+                    <b>{formatDateTime(inspection.created_at)}</b>
+                  </div>
+                </div>
+              );
+            })()}
+
           {detail && (
             <div className="inspection-stats">
-              <div>
-                Total images: <b>{detail.inspection.total_images}</b>
+              <div className="inspection-stats__list">
+                <div>
+                  Total images: <b>{totalImages}</b>
+                </div>
+                <div>
+                  Checked: <b>{analyzedCount}</b>
+                </div>
+                <div>
+                  Unchecked: <b>{uncheckedCount}</b>
+                </div>
               </div>
-              <div>
-                Analyzed: <b>{analyzedCount}</b>
-              </div>
-              <div>
-                Unchecked: <b>{uncheckedCount}</b>
-              </div>
+              <Button
+                variant="detail"
+                className="inspection-stats__export btn-compact"
+                onClick={downloadBoundingBoxes}
+                disabled={!detail}
+              >
+                Export JSON
+              </Button>
             </div>
           )}
 
@@ -1009,24 +1133,79 @@ const InspectionDetailPage: React.FC = () => {
           )}
 
           <div className="toolbar toolbar--actions">
-            <Button
-              variant="submit"
-              onClick={analyzeAllImages}
-              loading={isAnalyzingAll}
-              disabled={!detail || isAnalyzingAll}
-            >
-              {isAnalyzingAll
-                ? `Processing... ${overallProgress}%`
-                : "Analyze All"}
-            </Button>
+            <div className="toolbar__group">
+              <Button
+                variant="submit"
+                onClick={handleAnalyzeAllImages}
+                loading={isAnalyzingAll}
+                disabled={!detail || isAnalyzingAll}
+              >
+                {isAnalyzingAll
+                  ? `Processing... ${overallProgress}%`
+                  : "Analyze All"}
+              </Button>
 
-            <Button
-              variant="detail"
-              onClick={downloadBoundingBoxes}
-              disabled={!detail}
-            >
-              Export JSON
-            </Button>
+              <Button
+                variant="detail"
+                onClick={handleRefresh}
+                disabled={!onRefreshDetail && !onRefreshResults}
+              >
+                Refresh
+              </Button>
+
+              {!selectionMode ? (
+                <Button
+                  variant="detail"
+                  onClick={handleEnterSelectionMode}
+                  disabled={!hasVisibleImages}
+                >
+                  Select
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="detail"
+                    className="btn-compact"
+                    onClick={handleSelectAllVisible}
+                    disabled={!hasVisibleImages}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    variant="detail"
+                    className="btn-compact"
+                    onClick={clearSelection}
+                    disabled={selectedCount === 0}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    variant="cancel"
+                    className="btn-compact"
+                    onClick={handleExitSelectionMode}
+                  >
+                    Done
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {selectionMode && (
+              <div className="toolbar-selection">
+                <span className="toolbar-selection__count">
+                  {selectedCount} selected
+                </span>
+                <Button
+                  variant="delete"
+                  className="toolbar-selection__delete"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedCount === 0 || isDeletingSelection}
+                  loading={isDeletingSelection}
+                >
+                  Delete Selected
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="filter-bar">
@@ -1077,10 +1256,13 @@ const InspectionDetailPage: React.FC = () => {
                   const bump = imageVersionBump[img.id] || 0;
                   const analyzing = !!perImageAnalyzing[img.id];
                   const severe = hasSevereDamage(img);
+                  const isSelected = selectedImageIds.has(img.id);
                   const cardClasses = [
                     "image-card",
                     analyzing ? "image-card--analyzing" : "",
                     severe ? "image-card--critical" : "",
+                    isSelected ? "image-card--selected" : "",
+                    selectionMode ? "image-card--selecting" : "",
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -1091,23 +1273,58 @@ const InspectionDetailPage: React.FC = () => {
                       className={cardClasses}
                       title={`${img.file_name} | ${img.blade}/${img.surface}`}
                     >
+                      {selectionMode && (
+                        <div className="image-card__chrome">
+                          <label
+                            className={`image-card__select ${
+                              isSelected ? "image-card__select--active" : ""
+                            }`}
+                            data-state={isSelected ? "checked" : "unchecked"}
+                          >
+                            <input
+                              type="checkbox"
+                              className="image-card__checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleImageSelection(img.id)}
+                              aria-label={
+                                isSelected ? "Remove selection" : "Select image"
+                              }
+                            />
+                            <span className="image-card__select-label">
+                              {isSelected ? "Selected" : "Select image"}
+                            </span>
+                          </label>
+                        </div>
+                      )}
                       <div
                         className="image-thumb"
-                        onClick={() => openModal(img.id)}
+                        onClick={() => {
+                          if (selectionMode) {
+                            toggleImageSelection(img.id);
+                          } else {
+                            openModal(img.id);
+                          }
+                        }}
                       >
                         <img
-                          src={memoizedGetImageStreamUrl(img.id, bump)}
+                          src={buildImageStreamUrl(img.id, bump)}
                           alt={img.file_name}
                           loading="lazy"
                           draggable={false}
                           onError={(event) => {
                             (event.currentTarget as HTMLImageElement).src =
-                              memoizedGetImageStreamUrl(img.id, bump + 1);
+                              buildImageStreamUrl(img.id, bump + 1);
                           }}
                         />
-                        <div className="hover-overlay">View details</div>
+                        <div className="hover-overlay">
+                          {selectionMode
+                            ? isSelected
+                              ? "Selected"
+                              : "Click to select"
+                            : "View details"}
+                        </div>
                         {analyzing && (
-                          <div className="thumb-loading">Analyzing…</div>
+                          <div className="thumb-loading">Analyzing...</div>
                         )}
                       </div>
 
@@ -1117,33 +1334,35 @@ const InspectionDetailPage: React.FC = () => {
                         </span>
                         <span
                           className={`status ${
-                            isAnalyzed(img.status) ? "ok" : "raw"
+                            isAnalyzed(img.status) ? "checked" : "unchecked"
                           }`}
                         >
-                          {isAnalyzed(img.status) ? "Analyzed" : "Raw"}
+                          {isAnalyzed(img.status) ? "Checked" : "Unchecked"}
                         </span>
                       </div>
 
-                      <div className="card-actions">
-                        {!isAnalyzed(img.status) ? (
-                          <Button
-                            variant="submit"
-                            className="btn-compact"
-                            disabled={analyzing || isAnalyzingAll}
-                            onClick={() => analyzeOneImage(img.id)}
-                          >
-                            {analyzing ? "Analyzing..." : "Analyze"}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="detail"
-                            className="btn-compact"
-                            onClick={() => openModal(img.id)}
-                          >
-                            View
-                          </Button>
-                        )}
-                      </div>
+                      {!selectionMode && (
+                        <div className="card-actions card-actions--compact">
+                          {!isAnalyzed(img.status) ? (
+                            <Button
+                              variant="submit"
+                              className="btn-compact"
+                              disabled={analyzing || isAnalyzingAll}
+                              onClick={() => handleAnalyzeOneImage(img.id)}
+                            >
+                              {analyzing ? "Analyzing..." : "Analyze"}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="detail"
+                              className="btn-compact"
+                              onClick={() => openModal(img.id)}
+                            >
+                              View
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1179,21 +1398,32 @@ const InspectionDetailPage: React.FC = () => {
           >
             <div className="modal-image-wrap">
               <div className="viewer-toolbar">
-                <Button onClick={() => setShowBBox((value) => !value)}>
-                  {showBBox ? "Hide boxes" : "Show boxes"}
-                </Button>
-                <select
-                  className="bbox-filter"
-                  value={gradeFilter}
-                  onChange={(event) => setGradeFilter(event.target.value)}
-                >
-                  <option value="all">All Grades</option>
-                  <option value="1">Class 1</option>
-                  <option value="2">Class 2</option>
-                  <option value="3">Class 3</option>
-                  <option value="4">Class 4</option>
-                  <option value="5">Class 5</option>
-                </select>
+                <div className="viewer-toolbar__group">
+                  <Button
+                    onClick={() => setShowBBox((value) => !value)}
+                    className={`viewer-toolbar__toggle ${
+                      showBBox ? "viewer-toolbar__toggle--active" : ""
+                    }`}
+                    variant="cancel"
+                  >
+                    {showBBox ? "Hide boxes" : "Show boxes"}
+                  </Button>
+                </div>
+                <div className="viewer-toolbar__group">
+                  <select
+                    className="bbox-filter"
+                    value={gradeFilter}
+                    onChange={(event) => setGradeFilter(event.target.value)}
+                    aria-label="Bounding box severity filter"
+                  >
+                    <option value="all">All Grades</option>
+                    <option value="1">Class 1</option>
+                    <option value="2">Class 2</option>
+                    <option value="3">Class 3</option>
+                    <option value="4">Class 4</option>
+                    <option value="5">Class 5</option>
+                  </select>
+                </div>
               </div>
 
               <div className="zoom-canvas" {...zoomCanvasProps}>
@@ -1263,7 +1493,7 @@ const InspectionDetailPage: React.FC = () => {
                       <img
                         key={thumb.id}
                         className={thumbClasses}
-                        src={memoizedGetImageStreamUrl(thumb.id, bump)}
+                        src={buildImageStreamUrl(thumb.id, bump)}
                         title={thumb.file_name}
                         onClick={() => openModal(thumb.id)}
                       />
@@ -1300,55 +1530,23 @@ const InspectionDetailPage: React.FC = () => {
                         </div>
                         <div className="kv">
                           <span>Status</span>
-                          <b>{isAnalyzed(img.status) ? "Analyzed" : "Raw"}</b>
+                          <b>{isAnalyzed(img.status) ? "Checked" : "Unchecked"}</b>
+                        </div>
+                        <div style={{ marginTop: 12 }}>
+                          <Button
+                            variant="delete"
+                            className="btn-compact"
+                            onClick={() => handleDeleteSingle(img.id)}
+                            loading={!!deletingImageIds?.[img.id]}
+                          >
+                            Delete Image
+                          </Button>
                         </div>
                       </>
                     );
                   })()}
                 </div>
               </div>
-
-              {assessmentInfo && (
-                <div className="panel">
-                  <div className="panel-header">
-                    <div className="panel-title">AI results</div>
-                  </div>
-                  <div className="panel-body">
-                    <p>
-                      Primary class:{" "}
-                      <b>
-                        {assessmentInfo.ai_bounding_boxes?.[0]?.type || "N/A"}
-                      </b>
-                      {assessmentInfo.grade_label
-                        ? ` - ${assessmentInfo.grade_label}`
-                        : ""}
-                    </p>
-                    {assessmentInfo.grade_color && (
-                      <p>
-                        Alert color:{" "}
-                        <b
-                          className={`grade-emphasis grade-emphasis--${resolveGradeTone(
-                            assessmentInfo.grade_color,
-                            assessmentInfo.ai_bounding_boxes?.[0]?.type,
-                          )}`}
-                        >
-                          {assessmentInfo.grade_color}
-                        </b>
-                      </p>
-                    )}
-                    <p>
-                      Average confidence:{" "}
-                      {(assessmentInfo.ai_confidence * 100).toFixed(1)}%
-                    </p>
-                    {assessmentInfo.ai_damage_types?.length ? (
-                      <p>
-                        Damage types:{" "}
-                        {assessmentInfo.ai_damage_types.join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              )}
 
               {bboxData && bboxData.length > 0 && (
                 <div className="panel">
@@ -1380,6 +1578,101 @@ const InspectionDetailPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              <div className="panel">
+                <div className="panel-header">
+                  <div className="panel-title">Manual overrides</div>
+                </div>
+                <div className="panel-body">
+                  <div className="manual-edit">
+                    <label className="manual-edit__field">
+                      <span>Description</span>
+                      <textarea
+                        className="manual-edit__input manual-edit__textarea"
+                        rows={3}
+                        value={manualDescription}
+                        onChange={(event) => setManualDescription(event.target.value)}
+                        placeholder="Add notes or overrides..."
+                      />
+                    </label>
+                    <div className="manual-edit__controls">
+                      <Button
+                        variant="detail"
+                        onClick={handleSaveManualDescription}
+                        loading={savingManual}
+                        disabled={!modalOpen || modalIndex === null}
+                      >
+                        Save Description
+                      </Button>
+                      {manualFeedback && (
+                        <span
+                          className={`manual-edit__status ${
+                            manualFeedback.toLowerCase().includes("fail")
+                              ? "manual-edit__status--dirty"
+                              : "manual-edit__status--clean"
+                          }`}
+                        >
+                          {manualFeedback}
+                        </span>
+                      )}
+                    </div>
+
+                    {boxEditIndex !== null ? (
+                      <>
+                        <div className="manual-edit__grid manual-edit__grid--single">
+                          <label className="manual-edit__field">
+                            <span>Class</span>
+                            <input
+                              className="manual-edit__input"
+                              value={boxEdit.type}
+                              onChange={(event) =>
+                                handleBoxTypeChange(event.target.value)
+                              }
+                              placeholder="e.g. LV_2"
+                            />
+                            <span className="manual-edit__hint">
+                              e.g. LV_1, LV_2, LV_3, LV_4, LV_5
+                            </span>
+                          </label>
+                          <div className="manual-edit__field manual-edit__field--readonly">
+                            <span>Confidence</span>
+                            <div className="manual-edit__readonly">
+                              {formattedBoxConfidence}
+                            </div>
+                            <span className="manual-edit__hint">
+                              
+                            </span>
+                          </div>
+                        </div>
+                        <div className="manual-edit__controls">
+                          <Button
+                            variant="submit"
+                            onClick={handleSaveBoundingBox}
+                            loading={savingBox}
+                          >
+                            Update Box #{boxEditIndex + 1}
+                          </Button>
+                          {boxFeedback && (
+                            <span
+                              className={`manual-edit__status ${
+                                boxFeedback.toLowerCase().includes("fail")
+                                  ? "manual-edit__status--dirty"
+                                  : "manual-edit__status--clean"
+                              }`}
+                            >
+                              {boxFeedback}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="manual-edit__empty">
+                        Select a bounding box to adjust its class label.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1395,3 +1688,4 @@ export default InspectionDetailPage;
 // - Add keyboard navigation within the modal (arrow keys for previous/next).
 // - Surface API errors to the user via a toast system.
 // - Add aggregated statistics (e.g., per blade severity counts) to the header.  đây r mà
+

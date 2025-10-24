@@ -128,6 +128,22 @@ function GenericTable<T extends { id?: string }>({
   onPageChange,
   activateOnKeyboard = true,
 }: GenericTableProps<T>) {
+  const containerClassName = [
+    "table-container",
+    stickyHeader ? "table-container--sticky" : "",
+    loading ? "table-container--loading" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const tableClassName = [
+    "user-table",
+    stickyHeader ? "user-table--sticky" : "",
+    enableSelection ? "user-table--selectable" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const [sortState, setSortState] = React.useState<{ key?: string; dir?: "asc" | "desc" }>({});
   const manager = React.useMemo(() => new TableManager<T>(data, columns, getRowKey, getSelectionKey), [
     data,
@@ -179,13 +195,18 @@ function GenericTable<T extends { id?: string }>({
   };
 
   return (
-    <div className="table-container">
+    <div className={containerClassName} data-has-rows={sorted.length > 0}>
       <div className="table-scroll">
-        <table className={`user-table${stickyHeader ? " user-table--sticky" : ""}`}>
+        <table
+          className={tableClassName}
+          role="grid"
+          aria-busy={Boolean(loading)}
+          aria-rowcount={total ?? data.length}
+        >
           <thead>
             <tr>
               {enableSelection && (
-                <th className="th-select">
+                <th className="th-select" scope="col">
                   <input
                     type="checkbox"
                     checked={allChecked}
@@ -193,6 +214,7 @@ function GenericTable<T extends { id?: string }>({
                       if (el) el.indeterminate = indeterminate;
                     }}
                     onChange={handleToggleAll}
+                    aria-label={allChecked ? "Deselect all rows" : "Select all rows"}
                   />
                 </th>
               )}
@@ -211,6 +233,7 @@ function GenericTable<T extends { id?: string }>({
                   <th
                     key={col.key}
                     className={col.headerClassName ?? col.className}
+                    scope="col"
                     style={{
                       ...(col.size ? { width: `${col.size * 100}%` } : {}),
                       ...(col.align ? { textAlign: col.align } : {}),
@@ -269,7 +292,12 @@ function GenericTable<T extends { id?: string }>({
                   >
                     {enableSelection && (
                       <td className="td-select" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={checked} onChange={() => selKey && handleToggleOne(selKey)} />
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => selKey && handleToggleOne(selKey)}
+                          aria-label="Toggle row selection"
+                        />
                       </td>
                     )}
                     {columns.map((col) => {
@@ -294,11 +322,21 @@ function GenericTable<T extends { id?: string }>({
 
       {showPagination && (
         <div className="table-pagination">
-          <button className="btn-plain" onClick={() => onPageChange!(1)} disabled={page <= 1}>
+          <button
+            type="button"
+            className="btn btn--plain"
+            onClick={() => onPageChange!(1)}
+            disabled={page <= 1}
+          >
             {"<< "}
             First
           </button>
-          <button className="btn-plain" onClick={() => onPageChange!(page - 1)} disabled={page <= 1}>
+          <button
+            type="button"
+            className="btn btn--plain"
+            onClick={() => onPageChange!(page - 1)}
+            disabled={page <= 1}
+          >
             {"< "}
             Prev
           </button>
@@ -307,11 +345,21 @@ function GenericTable<T extends { id?: string }>({
             {Math.min((page - 1) * pageSize! + 1, total!)}-
             {Math.min(page * pageSize!, total!)} of {total}
           </span>
-          <button className="btn-plain" onClick={() => onPageChange!(page + 1)} disabled={page >= totalPages}>
+          <button
+            type="button"
+            className="btn btn--plain"
+            onClick={() => onPageChange!(page + 1)}
+            disabled={page >= totalPages}
+          >
             Next
             {" >"}
           </button>
-          <button className="btn-plain" onClick={() => onPageChange!(totalPages)} disabled={page >= totalPages}>
+          <button
+            type="button"
+            className="btn btn--plain"
+            onClick={() => onPageChange!(totalPages)}
+            disabled={page >= totalPages}
+          >
             Last
             {" >>"}
           </button>

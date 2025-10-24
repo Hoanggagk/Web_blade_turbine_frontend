@@ -1,4 +1,5 @@
 import React from "react";
+import Button from "../components/button";
 import "../styles/ForgotMailPassword.css";
 
 type ForgotMailPasswordProps = {
@@ -16,39 +17,43 @@ function ForgotMailPassword({
   onEmailChange,
   onSubmit,
 }: ForgotMailPasswordProps) {
-  return (
+    return (
     <div className="forgot-mail-page">
-      <div className="mail-form-container">
-        <h2 className="forgot-title">Forgot Password</h2>
-        <form onSubmit={onSubmit}>
-          <div className="input-form-container">
-            <label className="input-label">Your email</label>
-            <div className="input-container">
-              <input
-                type="text"
-                className="mail-input"
-                value={email}
-                onChange={(e) => onEmailChange(e.target.value)}
-                placeholder="Enter your email"
-                required
-                disabled={loading}
-              />
-            </div>
-          </div>
+      <form className="auth-form" onSubmit={onSubmit}>
+        <div className="auth-form__header">
+          <h2 className="auth-form__title">Forgot Password</h2>
+          <p className="auth-form__subtitle">Enter your email to receive an OTP.</p>
+        </div>
 
-          {error && <p className="error-message">{error}</p>}
-
-          <button
-            type="submit"
-            className="send-submit-button"
+        <div className="form-field">
+          <label className="form-label" htmlFor="forgot-email">
+            Your email
+          </label>
+          <input
+            id="forgot-email"
+            type="email"
+            className="form-input"
+            value={email}
+            onChange={(event) => onEmailChange(event.target.value)}
+            placeholder="Enter your email"
+            required
             disabled={loading}
-          >
+          />
+        </div>
+
+        {error && <p className="form-error">{error}</p>}
+
+        <div className="auth-form__actions">
+          <Button variant="submit" type="submit" disabled={loading}>
             {loading ? "Sending OTP..." : "Send OTP"}
-          </button>
-        </form>
-      </div>
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
 
 export default ForgotMailPassword;
+
+
+

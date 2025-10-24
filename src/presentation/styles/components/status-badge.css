@@ -1,0 +1,69 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: rgba(226, 232, 240, 0.8);
+  color: var(--color-text, #1e293b);
+  border: 1px solid transparent;
+  letter-spacing: 0.01em;
+}
+
+.status-badge--pill {
+  border-radius: 999px;
+}
+
+.status-badge.status-active,
+.status-badge--active {
+  background: rgba(34, 197, 94, 0.18);
+  color: #047857;
+}
+
+.status-badge.status-inactive,
+.status-badge--inactive {
+  background: rgba(148, 163, 184, 0.28);
+  color: #475569;
+}
+
+.status-badge.status-checked,
+.status-badge--checked {
+  background: rgba(34, 197, 94, 0.18);
+  color: #047857;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.status-badge.status-unchecked,
+.status-badge--unchecked {
+  background: rgba(148, 163, 184, 0.22);
+  color: #1f2937;
+}
+
+.status-badge.status-notstarted,
+.status-badge--notstarted {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.status-badge.status-paused,
+.status-badge--paused {
+  background: rgba(250, 204, 21, 0.25);
+  color: #a16207;
+}
+
+.status-badge.status-completed,
+.status-badge--completed {
+  background: rgba(59, 130, 246, 0.2);
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.status-badge.status-unknown,
+.status-badge--unknown {
+  background: rgba(148, 163, 184, 0.25);
+  color: #475569;
+}

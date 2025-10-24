@@ -1,3 +1,4 @@
+import Button from "../components/button";
 import "../styles/ForgotChangePasswordPage.css";
 type ForgotChangePasswordPageProps = {
   onSave: () => void;
@@ -20,45 +21,53 @@ function ForgotChangePasswordPage({
   error,
   title = "Change password",
 }: ForgotChangePasswordPageProps) {
-  return (
-    <div className="ChangePasswordPage">
-      {/* Change password form */}
-      <div className="change-password-form">
-        <h2>{title}</h2>
+    return (
+    <div className="change-password-page">
+      <div className="auth-form">
+        <div className="auth-form__header">
+          <h2 className="auth-form__title">{title}</h2>
+        </div>
 
-        <div className="input-group">
-          <label className="title-group">
-            <span style={{ color: "red" }}>*</span> New password
+        <div className="form-field">
+          <label className="form-label" htmlFor="new-password">
+            New password
           </label>
           <input
-            className="input-field"
+            id="new-password"
+            className="form-input"
             type="password"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            onChange={(event) => setNewPassword(event.target.value)}
           />
         </div>
 
-        <div className="input-group">
-          <label className="title-group">
-            <span style={{ color: "red" }}>*</span> Confirm password
+        <div className="form-field">
+          <label className="form-label" htmlFor="confirm-password">
+            Confirm password
           </label>
           <input
-            className="input-field"
+            id="confirm-password"
+            className="form-input"
             type="password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(event) => setConfirmPassword(event.target.value)}
           />
         </div>
-        {error && <p className="error-text">{error}</p>}
-        {info && <p className="info-text">{info}</p>}
 
+        {error && <p className="form-error">{error}</p>}
+        {info && <p className="auth-form__subtitle">{info}</p>}
 
-        <button className="save-btn" onClick={onSave}>
-          Save
-        </button>
+        <div className="auth-form__actions">
+          <Button variant="submit" onClick={onSave} type="button">
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
 
 export default ForgotChangePasswordPage;
+
+
+

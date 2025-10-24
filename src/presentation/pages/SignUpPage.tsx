@@ -1,3 +1,4 @@
+import Button from "../components/button";
 import "../styles/SignUpPage.css";
 
 interface SignUpPageProps {
@@ -35,115 +36,115 @@ function SignUpPage({
   onSignUp,
   signUpDisabled,
 }: SignUpPageProps) {
-  return (
+    return (
     <div className="sign-up-page">
-      <div className="sign-up-form-container">
-        <h1 className="sign-up-title">SIGN UP</h1>
+      <form className="auth-form" onSubmit={onSignUp}>
+        <div className="auth-form__header">
+          <h2 className="auth-form__title">Sign Up</h2>
+          {infoMessage && <p className="auth-form__subtitle">{infoMessage}</p>}
+        </div>
 
-        <form onSubmit={onSignUp}>
-          {/* Name */}
-          <div className="input-form-container">
-            <label className="input-label" htmlFor="name">Your name</label>
-            <div className="input-container">
-              <input
-                className="sign-up-input"
-                type="text"
-                id="name"
-                placeholder="Enter your name"
-                value={name}
-                onChange={(e) => onChangeName(e.target.value)}
-                required
-                minLength={2}
-              />
-            </div>
-          </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor="sign-up-name">
+            Your name
+          </label>
+          <input
+            id="sign-up-name"
+            className="form-input"
+            type="text"
+            placeholder="Enter your name"
+            value={name}
+            onChange={(event) => onChangeName(event.target.value)}
+            required
+            minLength={2}
+            disabled={loading}
+          />
+        </div>
 
-          {/* Email */}
-          <div className="input-form-container">
-            <label className="input-label" htmlFor="email">Your email</label>
-            <div className="input-container">
-              <input
-                className="sign-up-input"
-                type="email"
-                id="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => onChangeEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor="sign-up-email">
+            Your email
+          </label>
+          <input
+            id="sign-up-email"
+            className="form-input"
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(event) => onChangeEmail(event.target.value)}
+            required
+            disabled={loading}
+          />
+        </div>
 
-          {/* Phone */}
-          <div className="input-form-container">
-            <label className="input-label" htmlFor="phone">Your phone</label>
-            <div className="input-container">
-              <input
-                className="sign-up-input"
-                type="tel"
-                id="phone"
-                placeholder="Enter your phone"
-                value={phone}
-                onChange={(e) => onChangePhone(e.target.value)}
-                required
-                pattern="^[0-9]{10,11}$"
-                title="Số điện thoại phải có 10–11 chữ số"
-              />
-            </div>
-          </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor="sign-up-phone">
+            Your phone
+          </label>
+          <input
+            id="sign-up-phone"
+            className="form-input"
+            type="tel"
+            placeholder="Enter your phone"
+            value={phone}
+            onChange={(event) => onChangePhone(event.target.value)}
+            required
+            pattern="^[0-9]{10,11}$"
+            disabled={loading}
+          />
+        </div>
 
-          {/* Password */}
-          <div className="input-form-container">
-            <label className="input-label" htmlFor="password">Your password</label>
-            <div className="input-container">
-              <input
-                className="sign-up-input"
-                type="password"
-                id="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => onChangePassword(e.target.value)}
-                required
-                minLength={6}
-                title="Mật khẩu phải có ít nhất 6 ký tự"
-              />
-            </div>
-          </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor="sign-up-password">
+            Your password
+          </label>
+          <input
+            id="sign-up-password"
+            className="form-input"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(event) => onChangePassword(event.target.value)}
+            required
+            minLength={6}
+            disabled={loading}
+          />
+        </div>
 
-          {/* Confirm Password */}
-          <div className="input-form-container">
-            <label className="input-label" htmlFor="confirmPassword">Confirm password</label>
-            <div className="input-container">
-              <input
-                className="sign-up-input"
-                type="password"
-                id="confirmPassword"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => onChangeConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                title="Mật khẩu phải có ít nhất 6 ký tự"
-              />
-            </div>
-          </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor="sign-up-confirm-password">
+            Confirm password
+          </label>
+          <input
+            id="sign-up-confirm-password"
+            className="form-input"
+            type="password"
+            placeholder="Confirm your password"
+            value={confirmPassword}
+            onChange={(event) => onChangeConfirmPassword(event.target.value)}
+            required
+            minLength={6}
+            disabled={loading}
+          />
+        </div>
 
-          {/* Error & Info */}
-          {errorMessage && <p style={{ color: "red", marginTop: "8px" }}>{errorMessage}</p>}
-          {infoMessage && <p style={{ color: "green", marginTop: "8px" }}>{infoMessage}</p>}
+        {errorMessage && <p className="form-error">{errorMessage}</p>}
 
-          {/* Submit Button */}
-          <button
-            className="signup-btn"
+        <div className="auth-form__actions">
+          <Button
+            variant="submit"
             type="submit"
             disabled={signUpDisabled || loading}
           >
             {loading ? "Signing up..." : "Sign up"}
-          </button>
-        </form>
-      </div>
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
 
 export default SignUpPage;
+
+
+

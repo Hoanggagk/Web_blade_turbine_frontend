@@ -5,7 +5,7 @@ import type { Column } from "../components/table";
 import Button from "../components/button";
 import "../styles/MemberProjectPage.css";
 
-/** Types khớp BE */
+/** Types kh?p BE */
 export type ProjectMember = {
   project_id: string;
   user_id: string;
@@ -116,9 +116,10 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
         const isUpdating = updateLoading === m.user_id;
         return (
           <select
+            className="input input--sm"
             value={m.role}
             disabled={!canManage || isUpdating || m.role === "owner"}
-            onChange={(e) => onUpdate(m, { role: e.target.value as ProjectMember["role"] })}
+            onChange={(event) => onUpdate(m, { role: event.target.value as ProjectMember["role"] })}
           >
             <option value="owner">Owner</option>
             <option value="editor">Editor</option>
@@ -136,7 +137,16 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
       sortAccessor: (m) => m.joined_at || "",
       headerClassName: "col-right",
       className: "col-right",
-      render: (m) => <span>{formatDate(m.joined_at)}</span>,
+      render: (m) => formatDate(m.joined_at),
+    },
+    {
+      key: "can_invite",
+      header: "Can Invite",
+      size: 0.1,
+      align: "center",
+      headerClassName: "col-center",
+      className: "col-center",
+      render: (m) => (m.can_invite ? "Yes" : "No"),
     },
     {
       key: "actions",
@@ -148,7 +158,7 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
         const cannotDelete = !canManage || isOwner || isDeleting;
 
         return (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="member-project__actions">
             <Button
               variant="delete"
               onClick={() => onRemove(m)}
@@ -172,80 +182,78 @@ const MemberProjectPage: React.FC<MemberProjectPageProps> = ({
   };
 
   return (
-    <div className="MemberProjectPage">
-      <aside className="sidebar-content">
+    <div className="app-shell app-shell--viewport member-project">
+      <aside className="page-sidebar">
         <Sidebar />
       </aside>
 
-      <main className="main-content">
-        <div className="content-body">
-          {/* Header */}
-          <div className="page-header">
-            <div className="page-title">{projectTitle}</div>
-            <Button variant="cancel" onClick={onBack}>Back</Button>
-          </div>
+      <main className="page-main page-main--padded">
+        <div className="page-body">
+          <header className="member-project__header">
+            <h1 className="member-project__title">{projectTitle}</h1>
+            <Button variant="cancel" onClick={onBack}>
+              Back
+            </Button>
+          </header>
 
-          {/* Invite */}
-          <section className="invite-section">
-            <div className="invite-label">Invite team members</div>
-            <div className="invite-row-wrap">
-              <div className="invite-row">
-                <input
-                  type="text"
-                  className="invite-input"
-                  placeholder="Type email or name..."
-                  value={suggestQuery}
-                  onChange={(e) => onSuggestQueryChange(e.target.value)}
-                  disabled={!canManage}
-                />
-                <Button
-                  className="invite-add-btn"
-                  variant="submit"
-                  onClick={() => suggestQuery.trim() && onInviteUserId(suggestQuery.trim())}
-                  disabled={!canManage || !suggestQuery.trim() || !!inviteLoading}
-                  loading={!!inviteLoading}
-                >
-                  Add
-                </Button>
-              </div>
+          <section className="member-project__invite">
+            <span>Invite team members</span>
+            <div className="member-project__invite-row">
+              <input
+                type="text"
+                className="input input--sm"
+                placeholder="Type email or name..."
+                value={suggestQuery}
+                onChange={(event) => onSuggestQueryChange(event.target.value)}
+                disabled={!canManage}
+              />
+              <Button
+                variant="submit"
+                onClick={() => suggestQuery.trim() && onInviteUserId(suggestQuery.trim())}
+                disabled={!canManage || !suggestQuery.trim() || !!inviteLoading}
+                loading={!!inviteLoading}
+              >
+                Add
+              </Button>
+            </div>
 
-              {/* 🔽 Dropdown gợi ý */}
-              {(suggestLoading || suggestions.length > 0) && (
-                <div className="suggest-dropdown">
-                  {suggestLoading && <div className="suggest-loading">Loading...</div>}
+            {(suggestLoading || suggestions.length > 0) && (
+              <div className="member-project__suggest">
+                <div className="member-project__suggest-list">
+                  {suggestLoading && (
+                    <div className="member-project__suggest-loading">Loading...</div>
+                  )}
                   {!suggestLoading && suggestions.length === 0 && (
-                    <div className="suggest-empty">No users found</div>
+                    <div className="member-project__suggest-empty">No users found</div>
                   )}
                   {!suggestLoading &&
                     suggestions.map((s) => (
                       <div
                         key={s.id}
-                        className="suggest-item"
+                        className="member-project__suggest-item"
                         onClick={() => onInviteUserId(s.id)}
                       >
-                        <div className="suggest-name">{s.name}</div>
-                        <div className="suggest-email">{s.email}</div>
+                        <div className="member-project__suggest-name">{s.name}</div>
+                        <div className="member-project__suggest-email">{s.email}</div>
                       </div>
                     ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </section>
 
-          {/* Filter */}
-          <section className="filter-section">
-            <div className="filter-label">Team Members with Access</div>
+          <section className="member-project__filters">
+            <span>Team Members with Access</span>
             <input
               type="text"
-              className="filter-input"
+              className="input input--sm"
               placeholder="Search name or email"
               value={searchTerm}
-              onChange={(e) => onSearchTermChange(e.target.value)}
+              onChange={(event) => onSearchTermChange(event.target.value)}
             />
           </section>
 
-          {/* Table */}
-          <div className="table-wrap">
+          <div className="member-project__table">
             <GenericTable<typeof data[number]>
               data={data}
               columns={columns}

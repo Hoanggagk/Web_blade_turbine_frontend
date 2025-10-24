@@ -330,7 +330,15 @@ const TurbinePageLogic: React.FC = () => {
       loadingUpdate={loadingUpdate}
       onDelete={onDelete}
       loadingDeleteId={loadingDeleteId}
-      onRowClick={(row) => navigate(`/turbine/${row.id}`)}
+      onRowClick={(row) =>
+        navigate(`/turbine/${row.id}`, {
+          state: {
+            turbine: { id: row.id, name: row.name },
+            project: projectName ? { id: projectId, name: projectName } : undefined,
+            windfarm: windfarmName ? { id: windfarmId, name: windfarmName } : undefined,
+          },
+        })
+      }
     />
   );
 };

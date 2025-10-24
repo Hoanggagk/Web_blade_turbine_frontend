@@ -86,6 +86,12 @@ export const INSPECTIONS = {
   RESULTS: (inspection_id: string) => `/inspections/${inspection_id}/results`,
   ANALYZE_IMAGE: (image_id: string) => `/inspections/images/${image_id}/analyze`,
   IMAGE_STREAM: (image_id: string) => `/inspections/images/${image_id}/stream`,
+  IMAGE_PROCESSED: (image_id: string) => `/inspections/images/${image_id}/processed`,
+  DELETE_IMAGES: (inspection_id: string) => `/inspections/${inspection_id}/images`,
+  DELETE_IMAGE: (image_id: string) => `/inspections/images/${image_id}`,
+  UPDATE_ASSESSMENT: (image_id: string) => `/inspections/images/${image_id}/assessment`,
+  UPDATE_ASSESSMENT_BOX: (image_id: string) =>
+    `/inspections/images/${image_id}/assessment/box`,
 } as const;
 
 // =======================

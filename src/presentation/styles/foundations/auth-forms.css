@@ -1,0 +1,97 @@
+.auth-form {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg, 1rem);
+  padding: var(--spacing-xl, 1.5rem);
+  background: var(--color-surface, #ffffff);
+  border-radius: var(--radius-md, 0.75rem);
+  border: 1px solid var(--color-border, #d8e0f0);
+  box-shadow: var(--shadow-soft, 0 6px 18px rgba(15, 23, 42, 0.08));
+}
+
+.auth-form__header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 0.25rem);
+}
+
+.auth-form__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+.auth-form__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted, #475569);
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 0.25rem);
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #475569);
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border, #d8e0f0);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f172a);
+  font-size: 0.95rem;
+  transition: border-color var(--transition-base, 180ms ease), box-shadow var(--transition-base, 180ms ease);
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.form-input[aria-invalid="true"],
+.form-input--error {
+  border-color: var(--color-critical, #ef4444);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.form-error {
+  font-size: 0.8rem;
+  color: var(--color-critical, #ef4444);
+  margin-top: -0.25rem;
+}
+
+.auth-form__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 0.5rem);
+}
+
+.auth-form__actions .btn {
+  width: 100%;
+}
+
+.auth-form__footer {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #475569);
+}
+
+@media (max-width: 480px) {
+  .auth-form {
+    padding: var(--spacing-lg, 1rem);
+  }
+}
