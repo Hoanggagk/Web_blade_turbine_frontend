@@ -84,6 +84,7 @@ export const INSPECTIONS = {
   DETAIL: (inspection_id: string) => `/inspections/${inspection_id}`,
   DELETE: (inspection_id: string) => `/inspections/${inspection_id}`,
   RESULTS: (inspection_id: string) => `/inspections/${inspection_id}/results`,
+  EXPORT_PDF: (inspection_id: string) => `/inspections/${inspection_id}/export/pdf`,
   ANALYZE_IMAGE: (image_id: string) => `/inspections/images/${image_id}/analyze`,
   IMAGE_STREAM: (image_id: string) => `/inspections/images/${image_id}/stream`,
   IMAGE_PROCESSED: (image_id: string) => `/inspections/images/${image_id}/processed`,

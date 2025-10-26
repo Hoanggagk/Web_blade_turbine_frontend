@@ -36,6 +36,11 @@ type DrawnBox = {
   label: string;
 };
 
+type DownloadReportResult = {
+  blob: Blob;
+  filename?: string;
+};
+
 /**
  * Normalises and returns a colour per detected type.
  */
@@ -130,6 +135,7 @@ type Props = {
   ) => Promise<void> | void;
   onRefreshDetail?: () => void;
   onRefreshResults?: () => void;
+  onDownloadReport?: () => Promise<DownloadReportResult>;
 };
 
 /**
@@ -143,16 +149,7 @@ const hasSevereDamage = (img: ImageItem) =>
     }),
   ) ?? false;
 
-/**
- * Generates a compact signature for result payloads to avoid redundant state updates.
- */
-/**
- * Triggers a JSON download for arbitrary data.
- */
-const downloadJson = (filename: string, data: unknown) => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
-  });
+const triggerFileDownload = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -198,6 +195,7 @@ const InspectionDetailPage: React.FC<Props> = ({
   onUpdateBoundingBox,
   onRefreshDetail,
   onRefreshResults,
+  onDownloadReport,
 }) => {
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -205,6 +203,7 @@ const InspectionDetailPage: React.FC<Props> = ({
   const [page, setPage] = useState(1);
   const [bladeFilter, setBladeFilter] = useState<string>("all");
   const [listGradeFilter, setListGradeFilter] = useState<string>("all");
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
@@ -388,20 +387,34 @@ const InspectionDetailPage: React.FC<Props> = ({
     [getImageStreamUrl],
   );
 
-  const downloadBoundingBoxes = useCallback(() => {
-    if (!detail) return;
-    const payload = detail.images.map((img) => ({
-      id: img.id,
-      file_name: img.file_name,
-      blade: img.blade,
-      surface: img.surface,
-      assessments: img.assessments ?? [],
-    }));
-    downloadJson(
-      `inspection-${inspectionId ?? "export"}.json`,
-      payload,
-    );
-  }, [detail, inspectionId]);
+  const downloadInspectionReport = useCallback(async () => {
+    if (!inspectionId) {
+      window.alert("Missing inspection ID, unable to export the report.");
+      return;
+    }
+    if (!onDownloadReport) {
+      window.alert("Report export is currently unavailable.");
+      return;
+    }
+    setDownloadingReport(true);
+    try {
+      const payload = await onDownloadReport();
+      if (!payload) {
+        throw new Error("No report data returned from the server.");
+      }
+      const fallbackName = `Inspection_Report_${detail?.inspection.inspection_code ?? inspectionId}.pdf`;
+      triggerFileDownload(payload.blob, payload.filename || fallbackName);
+    } catch (error) {
+      console.error("❌ Error downloading inspection report:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to download the inspection report right now.";
+      window.alert(message);
+    } finally {
+      setDownloadingReport(false);
+    }
+  }, [detail?.inspection.inspection_code, inspectionId, onDownloadReport]);
 
   const selectedCount = selectedImageIds.size;
   const visibleCount = filteredImages.length;
@@ -1116,10 +1129,11 @@ const InspectionDetailPage: React.FC<Props> = ({
               <Button
                 variant="detail"
                 className="inspection-stats__export btn-compact"
-                onClick={downloadBoundingBoxes}
-                disabled={!detail}
+                onClick={downloadInspectionReport}
+                disabled={!detail || !inspectionId || !onDownloadReport}
+                loading={downloadingReport}
               >
-                Export JSON
+                Download Report (PDF)
               </Button>
             </div>
           )}

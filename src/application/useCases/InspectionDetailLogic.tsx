@@ -80,14 +80,77 @@ const normalizeCheckedSummary = <
       }
     : summary;
 
+type ResultAssessmentPayload = Partial<Assessment> & {
+  bounding_boxes?: BBox[];
+  damage_boxes?: BBox[];
+  confidence?: number;
+  damage_types?: string[];
+};
+
+const normalizeAssessmentList = (
+  input?: ResultAssessmentPayload[] | null,
+): Assessment[] => {
+  if (!Array.isArray(input) || input.length === 0) return [];
+  return input.map((entry) => {
+    const fallbackBoxes =
+      (Array.isArray(entry.bounding_boxes) ? entry.bounding_boxes : undefined) ??
+      (Array.isArray(entry.damage_boxes) ? entry.damage_boxes : undefined) ??
+      [];
+    return {
+      ai_confidence: entry.ai_confidence ?? entry.confidence ?? 0,
+      ai_bounding_boxes: entry.ai_bounding_boxes ?? fallbackBoxes,
+      ai_damage_types: entry.ai_damage_types ?? entry.damage_types ?? [],
+      damage_grade: entry.damage_grade,
+      grade_label: entry.grade_label,
+      grade_color: entry.grade_color,
+      description: entry.description,
+      damage_length_mm: entry.damage_length_mm,
+      damage_width_mm: entry.damage_width_mm,
+      damage_area_mm2: entry.damage_area_mm2,
+      pixel_to_mm_ratio: entry.pixel_to_mm_ratio,
+    };
+  });
+};
+
+const extractResultAssessments = (item?: {
+  assessments?: ResultAssessmentPayload[];
+  damage_assessments?: ResultAssessmentPayload[];
+}): { list: Assessment[]; provided: boolean } => {
+  if (!item) return { list: [], provided: false };
+  const hasAssessmentsField = item.assessments !== undefined;
+  const normalizedAssessments = normalizeAssessmentList(item.assessments);
+  if (hasAssessmentsField) {
+    return { list: normalizedAssessments, provided: true };
+  }
+  const hasDamageAssessmentsField = item.damage_assessments !== undefined;
+  const normalizedDamageAssessments = normalizeAssessmentList(item.damage_assessments);
+  if (hasDamageAssessmentsField) {
+    return { list: normalizedDamageAssessments, provided: true };
+  }
+  return {
+    list:
+      normalizedAssessments.length > 0 ? normalizedAssessments : normalizedDamageAssessments,
+    provided: false,
+  };
+};
+
+const resolveImageAssessments = (item?: {
+  assessments?: ResultAssessmentPayload[];
+  damage_assessments?: ResultAssessmentPayload[];
+}): Assessment[] => extractResultAssessments(item).list;
+
 const formatResultsSignature = (
-  items: Array<{ image_id: string; assessments?: Assessment[] }>,
+  items: Array<{
+    image_id: string;
+    assessments?: ResultAssessmentPayload[];
+    damage_assessments?: ResultAssessmentPayload[];
+  }>,
 ) => {
   if (!items) return null;
   return JSON.stringify(
     items.map((item) => ({
       id: item.image_id,
-      assessments: (item.assessments || []).map((assessment) => ({
+      assessments: resolveImageAssessments(item).map((assessment) => ({
         confidence: assessment.ai_confidence ?? 0,
         boxes: assessment.ai_bounding_boxes?.length ?? 0,
       })),
@@ -201,12 +264,14 @@ const InspectionDetailLogic: React.FC = () => {
 
       const resultMap = new Map<
         string,
-        { assessments: Assessment[]; status?: string }
+        { assessments: Assessment[]; status?: string; providedAssessments: boolean }
       >();
       images.forEach((item) => {
+        const { list, provided } = extractResultAssessments(item);
         resultMap.set(item.image_id, {
-          assessments: item.assessments ?? [],
+          assessments: list,
           status: item.status,
+          providedAssessments: provided,
         });
       });
 
@@ -219,10 +284,15 @@ const InspectionDetailLogic: React.FC = () => {
           const nextStatus = entry.status
             ? normalizeChecklistStatus(entry.status)
             : img.status;
-          const assessments = entry.assessments ?? [];
+          const incomingAssessments = entry.assessments ?? [];
+          const shouldReplaceAssessments = entry.providedAssessments;
+          const currentAssessments = img.assessments ?? [];
+          const nextAssessments = shouldReplaceAssessments
+            ? incomingAssessments
+            : currentAssessments;
           if (
             entry.status === undefined &&
-            assessments === img.assessments &&
+            !shouldReplaceAssessments &&
             nextStatus === img.status
           ) {
             return img;
@@ -230,7 +300,7 @@ const InspectionDetailLogic: React.FC = () => {
           didChange = true;
           return {
             ...img,
-            assessments,
+            assessments: nextAssessments,
             status: nextStatus,
           };
         });
@@ -400,6 +470,17 @@ const InspectionDetailLogic: React.FC = () => {
       setIsAnalyzingAll(false);
     }
   }, [analyzeImageInternal, detail, fetchResults]);
+
+  const handleDownloadInspectionReport = useCallback(async () => {
+    if (!inspectionId) {
+      throw new Error("Missing inspection ID");
+    }
+    const response = await inspectionService.exportInspectionPdf(inspectionId);
+    if (!response.ok || !response.data) {
+      throw new Error(response.message || "Failed to download inspection report");
+    }
+    return response.data;
+  }, [inspectionId]);
 
   const handleDeleteImages = useCallback(
     async (imageIds: string[]) => {
@@ -627,6 +708,7 @@ const InspectionDetailLogic: React.FC = () => {
       onUpdateBoundingBox={handleUpdateBoundingBox}
       onRefreshDetail={refreshDetail}
       onRefreshResults={fetchResults}
+      onDownloadReport={handleDownloadInspectionReport}
     />
   );
 };

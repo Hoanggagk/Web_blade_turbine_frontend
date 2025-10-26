@@ -65,7 +65,8 @@ export type InspectionResultsImage = {
   file_name: string;
   status?: string;
   file_url: string;
-  assessments: Assessment[];
+  assessments?: Assessment[];
+  damage_assessments?: Assessment[];
 };
 
 export type InspectionResults = {

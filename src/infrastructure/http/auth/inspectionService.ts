@@ -1,5 +1,5 @@
-import type { AxiosProgressEvent } from "axios";
-import { api, type ApiResult } from "../core";
+import type { AxiosProgressEvent, AxiosError } from "axios";
+import { api, apiClient, type ApiResult } from "../core";
 import { INSPECTIONS } from "../endpoints";
 import { withApiBase } from "../../../shared/config/env";
 import type {
@@ -50,6 +50,58 @@ export type UpdateAssessmentResponse = {
     description?: string;
     updated_at?: string;
   };
+};
+
+export type ExportInspectionReportPayload = {
+  blob: Blob;
+  filename?: string;
+};
+
+const parseFilenameFromDisposition = (header?: string | null) => {
+  if (!header) return undefined;
+  const filenameStarMatch = header.match(/filename\*=([^;]+)/i);
+  if (filenameStarMatch) {
+    const rawValue = filenameStarMatch[1].split("''").pop() ?? filenameStarMatch[1];
+    try {
+      return decodeURIComponent(rawValue.replace(/["']/g, "").trim());
+    } catch {
+      return rawValue.replace(/["']/g, "").trim();
+    }
+  }
+  const filenameMatch = header.match(/filename="?([^";]+)"?/i);
+  if (filenameMatch) {
+    return filenameMatch[1].trim();
+  }
+  return undefined;
+};
+
+const resolveErrorMessage = async (payload: unknown, fallback: string) => {
+  if (!payload) return fallback;
+  if (typeof payload === "string") return payload;
+  if (payload instanceof Blob) {
+    try {
+      const text = await payload.text();
+      if (!text) return fallback;
+      try {
+        const json = JSON.parse(text);
+        return json.detail || json.message || json.msg || text || fallback;
+      } catch {
+        return text;
+      }
+    } catch {
+      return fallback;
+    }
+  }
+  if (typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    return (
+      (typeof record.detail === "string" && record.detail) ||
+      (typeof record.message === "string" && record.message) ||
+      (typeof record.msg === "string" && record.msg) ||
+      fallback
+    );
+  }
+  return fallback;
 };
 
 type ListOptions = {
@@ -163,4 +215,39 @@ export const inspectionService = {
 
   getProcessedImageUrl: (imageId: string) =>
     withApiBase(INSPECTIONS.IMAGE_PROCESSED(imageId)),
+
+  exportInspectionPdf: async (
+    inspectionId: string,
+  ): Promise<ApiResult<ExportInspectionReportPayload>> => {
+    try {
+      const response = await apiClient.get<Blob>(INSPECTIONS.EXPORT_PDF(inspectionId), {
+        responseType: "blob",
+      });
+      const disposition =
+        response.headers["content-disposition"] || response.headers["Content-Disposition"];
+      return {
+        ok: true,
+        data: {
+          blob: response.data,
+          filename: parseFilenameFromDisposition(disposition),
+        },
+        status: response.status,
+        message: undefined,
+      };
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status ?? 0;
+      const payload = axiosError.response?.data;
+      const message = await resolveErrorMessage(
+        payload,
+        axiosError.message || "Failed to download inspection report",
+      );
+      return {
+        ok: false,
+        data: payload,
+        message,
+        status,
+      };
+    }
+  },
 };
