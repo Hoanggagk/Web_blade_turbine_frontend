@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import "../presentation/styles/index.css";
 import App from "../presentation/App";
@@ -19,13 +19,15 @@ const loadRuntimeConfig = async () => {
   }
 };
 
+const RootBoundary = import.meta.env.DEV ? Fragment : StrictMode;
+
 const start = () => {
   createRoot(document.getElementById("root")!).render(
-    <StrictMode>
+    <RootBoundary>
       <AppProviders>
         <App />
       </AppProviders>
-    </StrictMode>
+    </RootBoundary>
   );
 };
 

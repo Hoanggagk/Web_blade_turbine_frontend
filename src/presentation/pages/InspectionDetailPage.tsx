@@ -241,6 +241,7 @@ const InspectionDetailPage: React.FC<Props> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const latestBoxesRef = useRef<DrawnBox[]>([]);
   const modalAssessmentsSignatureRef = useRef<string | null>(null);
+  const pendingBboxRef = useRef<BBox[] | null>(null);
 
   // ----- Derived Data ---------------------------------------------------------------
   const checkedSummary = detail?.inspection.checked_summary;
@@ -517,6 +518,26 @@ const InspectionDetailPage: React.FC<Props> = ({
     setImgMetrics({ renderedWidth, renderedHeight, offsetX, offsetY });
   }, []);
 
+  const flushPendingBboxData = useCallback(() => {
+    if (pendingBboxRef.current === null) return;
+    const next = pendingBboxRef.current;
+    pendingBboxRef.current = null;
+    setBboxData(next.length ? [...next] : []);
+  }, []);
+
+  const scheduleBboxData = useCallback((boxes: BBox[]) => {
+    pendingBboxRef.current = boxes;
+    if (imgRef.current && imgRef.current.complete) {
+      flushPendingBboxData();
+    }
+  }, [flushPendingBboxData]);
+
+  const handleImageLoad = useCallback(() => {
+    refreshImageMetrics();
+    setImageLoading(false);
+    flushPendingBboxData();
+  }, [flushPendingBboxData, refreshImageMetrics]);
+
   const fetchImageBlob = useCallback(
     async (url: string) => {
       setImageLoading(true);
@@ -553,6 +574,7 @@ const InspectionDetailPage: React.FC<Props> = ({
       setModalIndex(idx);
       setModalOpen(true);
       setBboxData(null);
+      pendingBboxRef.current = null;
       setSelectedBox(null);
       setHoveredBox(null);
       setShowBBox(true);
@@ -581,7 +603,7 @@ const InspectionDetailPage: React.FC<Props> = ({
         const allBoxes = img.assessments.flatMap(
           (assessment) => assessment.ai_bounding_boxes ?? [],
         );
-        setBboxData(allBoxes);
+        scheduleBboxData(allBoxes);
       }
       setLoadingBbox(false);
     },
@@ -592,6 +614,7 @@ const InspectionDetailPage: React.FC<Props> = ({
       imageVersionBump,
       fetchImageBlob,
       buildImageStreamUrl,
+      scheduleBboxData,
     ],
   );
 
@@ -601,6 +624,7 @@ const InspectionDetailPage: React.FC<Props> = ({
     setModalIndex(null);
     setImageBlobUrl(null);
     setBboxData(null);
+    pendingBboxRef.current = null;
     setSelectedBox(null);
     setHoveredBox(null);
     setGradeFilter("all");
@@ -918,8 +942,8 @@ const InspectionDetailPage: React.FC<Props> = ({
     const allBoxes = assessments.flatMap(
       (assessment) => assessment.ai_bounding_boxes ?? [],
     );
-    setBboxData(allBoxes);
-  }, [filteredImages, modalIndex, modalOpen]);
+    scheduleBboxData(allBoxes);
+  }, [filteredImages, modalIndex, modalOpen, scheduleBboxData]);
 
   useEffect(() => {
     if (imageBlobUrl) {
@@ -1443,17 +1467,14 @@ const InspectionDetailPage: React.FC<Props> = ({
               <div className="zoom-canvas" {...zoomCanvasProps}>
                 <div className={zoomClassName}>
                   {imageBlobUrl && (
-                    <img
-                      ref={imgRef}
-                      src={imageBlobUrl}
-                      alt="preview"
-                      className="image-layer__img"
-                      onLoad={() => {
-                        refreshImageMetrics();
-                        setImageLoading(false);
-                      }}
-                      onError={() => setImageLoading(false)}
-                    />
+                      <img
+                        ref={imgRef}
+                        src={imageBlobUrl}
+                        alt="preview"
+                        className="image-layer__img"
+                        onLoad={handleImageLoad}
+                        onError={() => setImageLoading(false)}
+                      />
                   )}
 
                   {(loadingBbox || imageLoading) && (
